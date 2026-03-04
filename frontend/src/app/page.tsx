@@ -15,6 +15,17 @@ export default function HomePage() {
         <p style={{ marginTop: 10, color: "var(--muted)", maxWidth: 680 }}>
           IAM, Compute, Network, Storage, Governance를 일관된 운영 모델로 제공하는 클라우드 관리 콘솔.
         </p>
+        <a
+          href="/console/projects"
+          style={{
+            display: "inline-block",
+            marginTop: 12,
+            color: "#0f4dc2",
+            fontWeight: 700
+          }}
+        >
+          Week 2 IAM 콘솔로 이동
+        </a>
       </section>
       <section
         style={{
