@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: StratusCloud Public API
+  version: 0.1.0
+  description: |
+    StratusCloud 1차 MVP의 공개 REST API 계약서.
+servers:
+  - url: https://api.stratuscloud.local
+    description: local development gateway
+
+tags:
+  - name: system
+    description: 운영 상태 조회 API
+  - name: iam
+    description: IAM 및 프로젝트 관리 API
+
+paths:
+  /v1/system/ping:
+    get:
+      tags: [system]
+      summary: API 동작 상태를 확인한다.
+      operationId: getSystemPing
+      responses:
+        '200':
+          description: 정상 응답
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingResponse'
+
+  /v1/projects:
+    post:
+      tags: [iam]
+      summary: 프로젝트를 생성한다.
+      operationId: createProject
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PingResponse:
+      type: object
+      required: [message, traceId]
+      properties:
+        message:
+          type: string
+          example: pong
+        traceId:
+          type: string
+          pattern: '^[a-f0-9]{32}$'
+
+    CreateProjectRequest:
+      type: object
+      required: [tenantId, name]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+
+    Project:
+      type: object
+      required: [id, tenantId, name, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

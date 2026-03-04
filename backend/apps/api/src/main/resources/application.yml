@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: stratuscloud-api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

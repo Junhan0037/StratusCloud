@@ -1,0 +1,25 @@
+:root {
+  --background: #f4f7fb;
+  --foreground: #0e1a2b;
+  --surface: #ffffff;
+  --primary: #1255cc;
+  --muted: #5f6f85;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at top right, #e6eefc 0%, #f4f7fb 45%, #eef3f8 100%);
+  color: var(--foreground);
+  font-family: "Segoe UI", "Noto Sans KR", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
