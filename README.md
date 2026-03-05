@@ -2,6 +2,8 @@
 
 StratusCloud는 개인/소규모 팀을 위한 셀프서비스 클라우드 플랫폼 프로젝트입니다.
 
+![project.png](images/project.png)
+
 ## 디렉토리 구조
 
 - `backend`: Kotlin + Spring Boot 멀티모듈 API 서버
