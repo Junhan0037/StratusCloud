@@ -17,7 +17,7 @@ abstract class BaseAuditableEntity(
 ) {
     @PrePersist
     fun prePersist() {
-        // 한국어 설명: 생성 시점에 감사 필드를 자동으로 채운다.
+        // 생성 시점에 감사 필드를 자동으로 채운다.
         val now = LocalDateTime.now()
         createdAt = now
         updatedAt = now
@@ -25,7 +25,7 @@ abstract class BaseAuditableEntity(
 
     @PreUpdate
     fun preUpdate() {
-        // 한국어 설명: 수정 시점마다 updatedAt을 갱신한다.
+        // 수정 시점마다 updatedAt을 갱신한다.
         updatedAt = LocalDateTime.now()
     }
 }

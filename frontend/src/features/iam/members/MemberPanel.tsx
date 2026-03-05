@@ -17,7 +17,7 @@ interface MemberPanelProps {
 
 const roles: RoleType[] = ["OWNER", "ADMIN", "DEVELOPER", "VIEWER"];
 
-// 한국어 설명: 사용자 생성과 멤버 역할 변경 플로우를 한 화면에서 검증할 수 있게 구성한다.
+// 사용자 생성과 멤버 역할 변경 플로우를 한 화면에서 검증할 수 있게 구성한다.
 export function MemberPanel({ selectedProject }: MemberPanelProps) {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");

@@ -1,13 +1,17 @@
 openapi: 3.1.0
 info:
   title: StratusCloud Public API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     StratusCloud 1차 MVP 공개 REST API 계약서.
-    Week 2에서는 IAM-1 범위(프로젝트/사용자/멤버십)를 포함한다.
+    Week 3에서는 IAM-2 범위(OIDC JWT/API Key/Policy)를 포함한다.
 servers:
   - url: https://api.stratuscloud.local
     description: local development gateway
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
 
 tags:
   - name: system
@@ -21,6 +25,7 @@ paths:
       tags: [system]
       summary: API 동작 상태를 확인한다.
       operationId: getSystemPing
+      security: []
       responses:
         '200':
           description: 정상 응답
@@ -34,9 +39,6 @@ paths:
       tags: [iam]
       summary: 프로젝트를 생성한다.
       operationId: createProject
-      parameters:
-        - $ref: '#/components/parameters/XProjectRole'
-        - $ref: '#/components/parameters/XActorId'
       requestBody:
         required: true
         content:
@@ -50,14 +52,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-        '403':
-          description: 권한 없음
+        '401':
+          description: 인증 실패
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: 테넌트 없음
+        '403':
+          description: 권한 없음
           content:
             application/json:
               schema:
@@ -69,7 +71,6 @@ paths:
       summary: 프로젝트 단건 정보를 조회한다.
       operationId: getProject
       parameters:
-        - $ref: '#/components/parameters/XProjectRole'
         - name: projectId
           in: path
           required: true
@@ -83,21 +84,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-        '404':
-          description: 프로젝트 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/iam/users:
     post:
       tags: [iam]
       summary: 사용자를 생성한다.
       operationId: createUser
-      parameters:
-        - $ref: '#/components/parameters/XProjectRole'
-        - $ref: '#/components/parameters/XActorId'
       requestBody:
         required: true
         content:
@@ -111,12 +103,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
-        '409':
-          description: 이메일 중복
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/projects/{projectId}/members:
     post:
@@ -124,8 +110,6 @@ paths:
       summary: 프로젝트 멤버를 추가한다.
       operationId: addProjectMember
       parameters:
-        - $ref: '#/components/parameters/XProjectRole'
-        - $ref: '#/components/parameters/XActorId'
         - name: projectId
           in: path
           required: true
@@ -145,18 +129,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Membership'
-        '404':
-          description: 프로젝트 또는 사용자 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: 이미 존재하는 멤버십
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /v1/projects/{projectId}/members/{userId}/role:
     patch:
@@ -164,7 +136,6 @@ paths:
       summary: 프로젝트 멤버 역할을 변경한다.
       operationId: updateProjectMemberRole
       parameters:
-        - $ref: '#/components/parameters/XProjectRole'
         - name: projectId
           in: path
           required: true
@@ -190,30 +161,138 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Membership'
-        '404':
-          description: 멤버십 없음
+
+  /v1/iam/policies:
+    post:
+      tags: [iam]
+      summary: 정책 문서를 생성한다.
+      operationId: createPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePolicyRequest'
+      responses:
+        '201':
+          description: 생성 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Policy'
+    get:
+      tags: [iam]
+      summary: 테넌트의 정책 목록을 조회한다.
+      operationId: listPolicies
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Policy'
+
+  /v1/iam/roles:
+    post:
+      tags: [iam]
+      summary: 역할에 정책 목록을 바인딩한다.
+      operationId: bindRolePolicies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindRolePoliciesRequest'
+      responses:
+        '200':
+          description: 바인딩 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RolePolicy'
+
+  /v1/iam/api-keys:
+    post:
+      tags: [iam]
+      summary: API Key를 발급한다.
+      operationId: issueApiKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '201':
+          description: 발급 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+    get:
+      tags: [iam]
+      summary: 테넌트의 API Key 목록을 조회한다.
+      operationId: listApiKeys
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+
+  /v1/iam/api-keys/{keyId}:
+    delete:
+      tags: [iam]
+      summary: API Key를 회수한다.
+      operationId: revokeApiKey
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 회수 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
 
 components:
-  parameters:
-    XProjectRole:
-      name: X-Project-Role
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC issuer/JWKS 검증을 통과한 JWT 토큰
+    apiKeyAuth:
+      type: apiKey
       in: header
-      required: true
-      schema:
-        $ref: '#/components/schemas/RoleType'
-      description: Week 2 임시 RBAC 헤더
-    XActorId:
-      name: X-Actor-Id
-      in: header
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: 요청 수행 주체 식별자
+      name: X-API-Key
+      description: 머신 간 호출용 API Key
 
   schemas:
     PingResponse:
@@ -230,6 +309,10 @@ components:
     RoleType:
       type: string
       enum: [OWNER, ADMIN, DEVELOPER, VIEWER]
+
+    ApiKeyStatus:
+      type: string
+      enum: [ACTIVE, REVOKED]
 
     CreateProjectRequest:
       type: object
@@ -325,6 +408,162 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    PolicyDocument:
+      type: object
+      required: [version, statements]
+      properties:
+        version:
+          type: string
+        statements:
+          type: array
+          items:
+            type: object
+            required: [effect, actions, resources]
+            properties:
+              effect:
+                type: string
+                enum: [ALLOW, DENY]
+              actions:
+                type: array
+                items:
+                  type: string
+              resources:
+                type: array
+                items:
+                  type: string
+
+    CreatePolicyRequest:
+      type: object
+      required: [tenantId, name, document]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 300
+        document:
+          $ref: '#/components/schemas/PolicyDocument'
+
+    Policy:
+      type: object
+      required: [id, tenantId, name, document, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        document:
+          $ref: '#/components/schemas/PolicyDocument'
+        createdAt:
+          type: string
+          format: date-time
+
+    BindRolePoliciesRequest:
+      type: object
+      required: [tenantId, role, policyIds]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/RoleType'
+        policyIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+
+    RolePolicy:
+      type: object
+      required: [id, tenantId, role, policyId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/RoleType'
+        policyId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateApiKeyRequest:
+      type: object
+      required: [tenantId, name, role]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        role:
+          $ref: '#/components/schemas/RoleType'
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApiKey:
+      type: object
+      required: [id, tenantId, name, role, keyPrefix, status, expiresAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/RoleType'
+        keyPrefix:
+          type: string
+        status:
+          $ref: '#/components/schemas/ApiKeyStatus'
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        rawKey:
+          type: string
+          nullable: true
+          description: 발급 시 1회만 반환되는 원문 키
 
     ErrorResponse:
       type: object

@@ -16,3 +16,21 @@ cd backend
 ./gradlew clean test
 ./gradlew :apps:api:bootRun
 ```
+
+## 인증/인가(Week 3)
+
+- JWT(OIDC): `Authorization: Bearer <JWT>`
+- API Key: `X-API-Key: <raw-key>`
+- 로컬 Keycloak 예시 환경변수:
+
+```bash
+export SECURITY_OIDC_ISSUER_URI=http://localhost:8081/realms/stratuscloud
+export SECURITY_OIDC_JWK_SET_URI=http://localhost:8081/realms/stratuscloud/protocol/openid-connect/certs
+```
+
+- 주요 IAM-2 API:
+  - `POST /v1/iam/policies`
+  - `GET /v1/iam/policies?tenantId=...`
+  - `POST /v1/iam/roles`
+  - `POST /v1/iam/api-keys`
+  - `DELETE /v1/iam/api-keys/{keyId}`

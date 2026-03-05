@@ -1,4 +1,4 @@
--- 한국어 설명: Week 2에서 필요한 IAM 핵심 테이블을 초기 생성한다.
+-- Week 2에서 필요한 IAM 핵심 테이블을 초기 생성한다.
 
 create table if not exists tenants (
     id uuid primary key,

@@ -1,8 +1,11 @@
 package com.stratuscloud.api.common.error
 
 import com.stratuscloud.common.trace.TraceIdProvider
+import com.stratuscloud.iam.exception.BadRequestException
 import com.stratuscloud.iam.exception.DuplicateResourceException
+import com.stratuscloud.iam.exception.ForbiddenException
 import com.stratuscloud.iam.exception.ResourceNotFoundException
+import com.stratuscloud.iam.exception.UnauthorizedException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -22,6 +25,21 @@ class GlobalExceptionHandler(
     @ExceptionHandler(DuplicateResourceException::class)
     fun handleDuplicate(ex: DuplicateResourceException): ResponseEntity<ErrorResponse> {
         return build(HttpStatus.CONFLICT, "DUPLICATE_RESOURCE", ex.message ?: "duplicate resource")
+    }
+
+    @ExceptionHandler(BadRequestException::class)
+    fun handleBadRequest(ex: BadRequestException): ResponseEntity<ErrorResponse> {
+        return build(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.message ?: "bad request")
+    }
+
+    @ExceptionHandler(ForbiddenException::class)
+    fun handleForbidden(ex: ForbiddenException): ResponseEntity<ErrorResponse> {
+        return build(HttpStatus.FORBIDDEN, "FORBIDDEN", ex.message ?: "forbidden")
+    }
+
+    @ExceptionHandler(UnauthorizedException::class)
+    fun handleUnauthorized(ex: UnauthorizedException): ResponseEntity<ErrorResponse> {
+        return build(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", ex.message ?: "unauthorized")
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

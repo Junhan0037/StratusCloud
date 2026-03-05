@@ -17,3 +17,11 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+
+security:
+  oidc:
+    issuer-uri:
+    jwk-set-uri:
+  api-key:
+    header-name: X-API-Key
+  legacy-rbac-header-enabled: true

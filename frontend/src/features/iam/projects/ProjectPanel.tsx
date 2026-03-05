@@ -7,7 +7,7 @@ interface ProjectPanelProps {
   onSelectProject: (project: ProjectResponse) => void;
 }
 
-// 한국어 설명: 프로젝트 생성과 선택 흐름을 분리해 Week 2 콘솔 뼈대를 빠르게 구성한다.
+// 프로젝트 생성과 선택 흐름을 분리해 Week 2 콘솔 뼈대를 빠르게 구성한다.
 export function ProjectPanel({ onSelectProject }: ProjectPanelProps) {
   const [tenantId, setTenantId] = useState("");
   const [projectName, setProjectName] = useState("");

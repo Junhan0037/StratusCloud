@@ -24,7 +24,7 @@ export default function HomePage() {
             fontWeight: 700
           }}
         >
-          Week 2 IAM 콘솔로 이동
+          Week 3 IAM 콘솔로 이동
         </a>
       </section>
       <section

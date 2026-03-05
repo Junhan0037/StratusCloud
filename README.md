@@ -25,8 +25,3 @@ cd frontend
 npm install
 npm run dev
 ```
-
-## 현재 구현 상태
-
-- 1주차 기반 구조(모듈/CI/OpenAPI/샘플 API/콘솔 랜딩) 구현
-- `GET /v1/system/ping` 샘플 API 및 테스트 추가
