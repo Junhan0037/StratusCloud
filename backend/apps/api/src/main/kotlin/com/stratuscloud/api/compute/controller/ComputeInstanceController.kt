@@ -4,8 +4,14 @@ import com.stratuscloud.api.common.security.AuthContextHolder
 import com.stratuscloud.api.common.security.ApiAuditRecorder
 import com.stratuscloud.api.common.security.AuthorizationFacade
 import com.stratuscloud.api.compute.dto.ComputeInstanceResponse
+import com.stratuscloud.api.compute.dto.ComputeInstanceHealthResponse
+import com.stratuscloud.api.compute.dto.ComputeInstanceMetricResponse
 import com.stratuscloud.api.compute.dto.CreateComputeInstanceRequest
+import com.stratuscloud.api.compute.dto.WriteComputeInstanceHealthRequest
+import com.stratuscloud.api.compute.dto.WriteComputeInstanceMetricRequest
+import com.stratuscloud.compute.service.ComputeInstanceTelemetryService
 import com.stratuscloud.compute.service.ComputeInstanceService
+import com.stratuscloud.compute.service.ComputeHealthcheckService
 import com.stratuscloud.iam.service.IamAction
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -24,6 +30,8 @@ import java.util.UUID
 @RequestMapping("/v1/compute/instances")
 class ComputeInstanceController(
     private val computeInstanceService: ComputeInstanceService,
+    private val computeInstanceTelemetryService: ComputeInstanceTelemetryService,
+    private val computeHealthcheckService: ComputeHealthcheckService,
     private val authorizationFacade: AuthorizationFacade,
     private val apiAuditRecorder: ApiAuditRecorder
 ) {
@@ -79,8 +87,9 @@ class ComputeInstanceController(
             resourceType = "COMPUTE_INSTANCE",
             resourceId = null
         )
-        val instances = computeInstanceService.listInstances(tenantId, projectId).map { ComputeInstanceResponse.from(it) }
-        return ResponseEntity.ok(instances)
+        val instances = computeInstanceService.listInstances(tenantId, projectId)
+        val metrics = computeInstanceTelemetryService.latestMetrics(instances.mapNotNull { it.id })
+        return ResponseEntity.ok(instances.map { ComputeInstanceResponse.from(it, metrics[it.id]) })
     }
 
     @GetMapping("/{instanceId}")
@@ -96,7 +105,8 @@ class ComputeInstanceController(
             resourceType = "COMPUTE_INSTANCE",
             resourceId = instanceId.toString()
         )
-        return ResponseEntity.ok(ComputeInstanceResponse.from(instance))
+        val metric = computeInstanceTelemetryService.latestMetrics(listOf(instanceId))[instanceId]
+        return ResponseEntity.ok(ComputeInstanceResponse.from(instance, metric))
     }
 
     @PostMapping("/{instanceId}:start")
@@ -175,5 +185,72 @@ class ComputeInstanceController(
             metadata = mapOf("status" to updated.status.name)
         )
         return ResponseEntity.ok(ComputeInstanceResponse.from(updated))
+    }
+
+    @PostMapping("/{instanceId}/metrics")
+    fun writeMetric(
+        @PathVariable instanceId: UUID,
+        @Valid @RequestBody request: WriteComputeInstanceMetricRequest
+    ): ResponseEntity<ComputeInstanceMetricResponse> {
+        val principal = AuthContextHolder.getRequired()
+        val instance = computeInstanceService.getInstance(instanceId)
+        authorizationFacade.authorize(
+            principal = principal,
+            tenantId = instance.tenantId,
+            projectId = instance.projectId,
+            action = IamAction.COMPUTE_INSTANCE_METRIC_WRITE,
+            resource = "compute-instance:$instanceId",
+            resourceType = "COMPUTE_INSTANCE",
+            resourceId = instanceId.toString()
+        )
+        val metric = computeInstanceTelemetryService.writeMetric(
+            instanceId = instanceId,
+            cpuPercent = request.cpuPercent,
+            memoryPercent = request.memoryPercent,
+            actorId = principal.actorId
+        )
+        apiAuditRecorder.recordSuccess(
+            principal = principal,
+            tenantId = instance.tenantId,
+            projectId = instance.projectId,
+            action = IamAction.COMPUTE_INSTANCE_METRIC_WRITE,
+            resourceType = "COMPUTE_INSTANCE",
+            resourceId = instanceId.toString(),
+            metadata = mapOf("cpuPercent" to request.cpuPercent, "memoryPercent" to request.memoryPercent)
+        )
+        return ResponseEntity.ok(ComputeInstanceMetricResponse.from(metric))
+    }
+
+    @PostMapping("/{instanceId}/health")
+    fun writeHealth(
+        @PathVariable instanceId: UUID,
+        @Valid @RequestBody request: WriteComputeInstanceHealthRequest
+    ): ResponseEntity<ComputeInstanceHealthResponse> {
+        val principal = AuthContextHolder.getRequired()
+        val instance = computeInstanceService.getInstance(instanceId)
+        authorizationFacade.authorize(
+            principal = principal,
+            tenantId = instance.tenantId,
+            projectId = instance.projectId,
+            action = IamAction.COMPUTE_INSTANCE_HEALTH_WRITE,
+            resource = "compute-instance:$instanceId",
+            resourceType = "COMPUTE_INSTANCE",
+            resourceId = instanceId.toString()
+        )
+        val health = computeHealthcheckService.reportHealth(
+            instanceId = instanceId,
+            status = request.status,
+            detail = request.detail
+        )
+        apiAuditRecorder.recordSuccess(
+            principal = principal,
+            tenantId = instance.tenantId,
+            projectId = instance.projectId,
+            action = IamAction.COMPUTE_INSTANCE_HEALTH_WRITE,
+            resourceType = "COMPUTE_INSTANCE",
+            resourceId = instanceId.toString(),
+            metadata = mapOf("status" to request.status.name)
+        )
+        return ResponseEntity.ok(ComputeInstanceHealthResponse.from(health))
     }
 }

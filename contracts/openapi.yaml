@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: StratusCloud Public API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     StratusCloud 1차 MVP 공개 REST API 계약서.
-    Week 5에서는 Compute-1 범위(Image/Instance)를 포함한다.
+    Week 6에서는 Compute-2 범위(Autoscaling/Healthcheck)를 포함한다.
 servers:
   - url: https://api.stratuscloud.local
     description: local development gateway
@@ -622,6 +622,163 @@ paths:
               schema:
                 $ref: '#/components/schemas/ComputeInstance'
 
+  /v1/compute/instances/{instanceId}/metrics:
+    post:
+      tags: [compute]
+      summary: 인스턴스의 최신 CPU/메모리 메트릭을 기록한다.
+      operationId: writeComputeInstanceMetric
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WriteComputeInstanceMetricRequest'
+      responses:
+        '200':
+          description: 기록 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeInstanceMetric'
+
+  /v1/compute/instances/{instanceId}/health:
+    post:
+      tags: [compute]
+      summary: 인스턴스의 최신 헬스 상태를 기록한다.
+      operationId: writeComputeInstanceHealth
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WriteComputeInstanceHealthRequest'
+      responses:
+        '200':
+          description: 기록 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeInstanceHealth'
+
+  /v1/compute/autoscaling-groups:
+    post:
+      tags: [compute]
+      summary: 오토스케일 그룹을 생성한다.
+      operationId: createComputeAutoscalingGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComputeAutoscalingGroupRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeAutoscalingGroup'
+    get:
+      tags: [compute]
+      summary: 프로젝트의 오토스케일 그룹 목록을 조회한다.
+      operationId: listComputeAutoscalingGroups
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComputeAutoscalingGroup'
+
+  /v1/compute/autoscaling-groups/{groupId}:
+    get:
+      tags: [compute]
+      summary: 오토스케일 그룹 단건을 조회한다.
+      operationId: getComputeAutoscalingGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeAutoscalingGroup'
+
+  /v1/compute/autoscaling-groups/{groupId}:evaluate:
+    post:
+      tags: [compute]
+      summary: 그룹의 최신 메트릭 기준으로 desired 인스턴스 수를 재계산한다.
+      operationId: evaluateComputeAutoscalingGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 평가 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeAutoscalingGroup'
+
+  /v1/compute/autoscaling-groups/{groupId}:reconcile-health:
+    post:
+      tags: [compute]
+      summary: 그룹 내 누적 실패 인스턴스를 재시작 우선 정책으로 복구한다.
+      operationId: reconcileComputeAutoscalingGroupHealth
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 복구 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeHealthReconcileResult'
+
   /v1/audit/logs:
     get:
       tags: [audit]
@@ -720,6 +877,18 @@ components:
     ComputeInstanceStatus:
       type: string
       enum: [PENDING, RUNNING, STOPPED, TERMINATED]
+
+    ComputeHealthStatus:
+      type: string
+      enum: [UNKNOWN, HEALTHY, UNHEALTHY]
+
+    ComputeHealthPolicy:
+      type: string
+      enum: [RESTART]
+
+    ComputeAutoscalingGroupStatus:
+      type: string
+      enum: [ACTIVE]
 
     ComputeOsType:
       type: string
@@ -1131,7 +1300,7 @@ components:
 
     ComputeInstance:
       type: object
-      required: [id, tenantId, projectId, imageId, name, flavor, status, createdAt, updatedAt, lastTransitionAt]
+      required: [id, tenantId, projectId, imageId, name, flavor, status, healthStatus, restartCount, createdAt, updatedAt, lastTransitionAt]
       properties:
         id:
           type: string
@@ -1145,12 +1314,24 @@ components:
         imageId:
           type: string
           format: uuid
+        autoscalingGroupId:
+          type: string
+          format: uuid
+          nullable: true
         name:
           type: string
         flavor:
           type: string
         status:
           $ref: '#/components/schemas/ComputeInstanceStatus'
+        healthStatus:
+          $ref: '#/components/schemas/ComputeHealthStatus'
+        restartCount:
+          type: integer
+        latestMetric:
+          allOf:
+            - $ref: '#/components/schemas/ComputeInstanceMetric'
+          nullable: true
         userData:
           type: string
           nullable: true
@@ -1163,6 +1344,183 @@ components:
         lastTransitionAt:
           type: string
           format: date-time
+
+    WriteComputeInstanceMetricRequest:
+      type: object
+      required: [cpuPercent, memoryPercent]
+      properties:
+        cpuPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        memoryPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    ComputeInstanceMetric:
+      type: object
+      required: [instanceId, cpuPercent, memoryPercent, reportedAt]
+      properties:
+        instanceId:
+          type: string
+          format: uuid
+        cpuPercent:
+          type: integer
+        memoryPercent:
+          type: integer
+        reportedAt:
+          type: string
+          format: date-time
+
+    WriteComputeInstanceHealthRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ComputeHealthStatus'
+        detail:
+          type: string
+          nullable: true
+          maxLength: 500
+
+    ComputeInstanceHealth:
+      type: object
+      required: [instanceId, status, failureCount, checkedAt]
+      properties:
+        instanceId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ComputeHealthStatus'
+        failureCount:
+          type: integer
+        detail:
+          type: string
+          nullable: true
+        checkedAt:
+          type: string
+          format: date-time
+
+    CreateComputeAutoscalingGroupRequest:
+      type: object
+      required:
+        [tenantId, projectId, name, imageId, flavor, minInstances, maxInstances, cpuScaleOutPercent, cpuScaleInPercent, memoryScaleOutPercent, memoryScaleInPercent]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        imageId:
+          type: string
+          format: uuid
+        flavor:
+          type: string
+          enum: [nano, small, medium]
+        minInstances:
+          type: integer
+          minimum: 1
+        maxInstances:
+          type: integer
+          minimum: 1
+        cpuScaleOutPercent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        cpuScaleInPercent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        memoryScaleOutPercent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        memoryScaleInPercent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        healthPolicy:
+          $ref: '#/components/schemas/ComputeHealthPolicy'
+        failureThreshold:
+          type: integer
+          minimum: 1
+
+    ComputeAutoscalingGroup:
+      type: object
+      required:
+        [id, tenantId, projectId, name, imageId, flavor, minInstances, maxInstances, desiredInstances, currentInstances, healthPolicy, failureThreshold, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        imageId:
+          type: string
+          format: uuid
+        flavor:
+          type: string
+        minInstances:
+          type: integer
+        maxInstances:
+          type: integer
+        desiredInstances:
+          type: integer
+        currentInstances:
+          type: integer
+        cpuScaleOutPercent:
+          type: integer
+        cpuScaleInPercent:
+          type: integer
+        memoryScaleOutPercent:
+          type: integer
+        memoryScaleInPercent:
+          type: integer
+        averageCpuPercent:
+          type: integer
+          nullable: true
+        averageMemoryPercent:
+          type: integer
+          nullable: true
+        healthPolicy:
+          $ref: '#/components/schemas/ComputeHealthPolicy'
+        failureThreshold:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ComputeAutoscalingGroupStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ComputeHealthReconcileResult:
+      type: object
+      required: [restartedInstanceIds, replacementInstanceIds]
+      properties:
+        restartedInstanceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        replacementInstanceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     AuditLog:
       type: object

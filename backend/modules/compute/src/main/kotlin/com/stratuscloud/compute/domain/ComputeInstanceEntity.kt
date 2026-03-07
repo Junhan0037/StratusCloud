@@ -24,6 +24,8 @@ class ComputeInstanceEntity(
     val projectId: UUID = UUID.randomUUID(),
     @Column(name = "image_id", nullable = false)
     val imageId: UUID = UUID.randomUUID(),
+    @Column(name = "autoscaling_group_id")
+    var autoscalingGroupId: UUID? = null,
     @Column(nullable = false, length = 100)
     val name: String = "",
     @Column(nullable = false, length = 20)
@@ -33,6 +35,11 @@ class ComputeInstanceEntity(
     var status: ComputeInstanceStatus = ComputeInstanceStatus.PENDING,
     @Column(name = "user_data", columnDefinition = "text")
     val userData: String? = null,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "health_status", nullable = false, length = 20)
+    var healthStatus: ComputeHealthStatus = ComputeHealthStatus.UNKNOWN,
+    @Column(name = "restart_count", nullable = false)
+    var restartCount: Int = 0,
     @Column(name = "last_transition_at", nullable = false)
     var lastTransitionAt: LocalDateTime = LocalDateTime.now(),
     createdBy: String = "system"

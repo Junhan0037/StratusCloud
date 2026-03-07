@@ -1,5 +1,7 @@
 package com.stratuscloud.compute.service
 
+import com.stratuscloud.compute.domain.ComputeAutoscalingGroupEntity
+import com.stratuscloud.compute.domain.ComputeHealthStatus
 import com.stratuscloud.compute.domain.ComputeImageStatus
 import com.stratuscloud.compute.domain.ComputeInstanceEntity
 import com.stratuscloud.compute.domain.ComputeInstanceStatus
@@ -27,7 +29,8 @@ class ComputeInstanceService(
         imageId: UUID,
         flavor: String,
         userData: String?,
-        actorId: UUID
+        actorId: UUID,
+        autoscalingGroupId: UUID? = null
     ): ComputeInstanceEntity {
         val project = projectRepository.findById(projectId)
             .orElseThrow { ResourceNotFoundException("project not found: $projectId") }
@@ -49,10 +52,13 @@ class ComputeInstanceService(
                 tenantId = tenantId,
                 projectId = projectId,
                 imageId = imageId,
+                autoscalingGroupId = autoscalingGroupId,
                 name = name.trim(),
                 flavor = normalizedFlavor,
                 status = ComputeInstanceStatus.PENDING,
                 userData = userData?.trim()?.takeIf { it.isNotBlank() },
+                healthStatus = ComputeHealthStatus.UNKNOWN,
+                restartCount = 0,
                 lastTransitionAt = LocalDateTime.now(),
                 createdBy = actorId.toString()
             )
@@ -65,12 +71,41 @@ class ComputeInstanceService(
     @Transactional(readOnly = true)
     fun listInstances(tenantId: UUID, projectId: UUID): List<ComputeInstanceEntity> {
         return computeInstanceRepository.findAllByTenantIdAndProjectIdOrderByCreatedAtDesc(tenantId, projectId)
+            .filter { it.status != ComputeInstanceStatus.TERMINATED }
     }
 
     @Transactional(readOnly = true)
     fun getInstance(instanceId: UUID): ComputeInstanceEntity {
         return computeInstanceRepository.findById(instanceId)
             .orElseThrow { ResourceNotFoundException("compute instance not found: $instanceId") }
+    }
+
+    @Transactional(readOnly = true)
+    fun listGroupInstances(groupId: UUID): List<ComputeInstanceEntity> {
+        return computeInstanceRepository.findAllByAutoscalingGroupIdOrderByCreatedAtDesc(groupId)
+    }
+
+    @Transactional(readOnly = true)
+    fun listActiveGroupInstances(groupId: UUID): List<ComputeInstanceEntity> {
+        return listGroupInstances(groupId).filter { it.status != ComputeInstanceStatus.TERMINATED }
+    }
+
+    @Transactional
+    fun createGroupManagedInstance(
+        group: ComputeAutoscalingGroupEntity,
+        actorId: UUID,
+        sequence: Int
+    ): ComputeInstanceEntity {
+        return createInstance(
+            tenantId = group.tenantId,
+            projectId = group.projectId,
+            name = "${group.name}-$sequence",
+            imageId = group.imageId,
+            flavor = group.flavor,
+            userData = null,
+            actorId = actorId,
+            autoscalingGroupId = requireNotNull(group.id) { "autoscaling group id is null" }
+        )
     }
 
     @Transactional
@@ -96,6 +131,30 @@ class ComputeInstanceService(
             next = ComputeInstanceStatus.TERMINATED
         )
         return saveTransition(instance, ComputeInstanceStatus.TERMINATED)
+    }
+
+    @Transactional
+    fun updateHealthStatus(instanceId: UUID, healthStatus: ComputeHealthStatus): ComputeInstanceEntity {
+        val instance = getInstance(instanceId)
+        instance.healthStatus = healthStatus
+        return computeInstanceRepository.save(instance)
+    }
+
+    @Transactional
+    fun restartInstance(instanceId: UUID): ComputeInstanceEntity {
+        val instance = getInstance(instanceId)
+        if (instance.status == ComputeInstanceStatus.TERMINATED) {
+            throw BadRequestException("cannot restart terminated instance: $instanceId")
+        }
+        instance.status = ComputeInstanceStatus.RUNNING
+        instance.healthStatus = ComputeHealthStatus.HEALTHY
+        instance.restartCount += 1
+        instance.lastTransitionAt = LocalDateTime.now()
+        return computeInstanceRepository.save(instance)
+    }
+
+    fun validateFlavor(flavor: String): String {
+        return normalizeFlavor(flavor)
     }
 
     private fun saveTransition(instance: ComputeInstanceEntity, next: ComputeInstanceStatus): ComputeInstanceEntity {

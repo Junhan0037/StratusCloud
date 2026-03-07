@@ -6,4 +6,5 @@ import java.util.UUID
 
 interface ComputeInstanceRepository : JpaRepository<ComputeInstanceEntity, UUID> {
     fun findAllByTenantIdAndProjectIdOrderByCreatedAtDesc(tenantId: UUID, projectId: UUID): List<ComputeInstanceEntity>
+    fun findAllByAutoscalingGroupIdOrderByCreatedAtDesc(autoscalingGroupId: UUID): List<ComputeInstanceEntity>
 }

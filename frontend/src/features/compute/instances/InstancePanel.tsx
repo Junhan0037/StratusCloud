@@ -176,7 +176,13 @@ export function InstancePanel({ selectedProject }: InstancePanelProps) {
         {instances.map((instance) => (
           <li key={instance.id} style={{ marginBottom: 12 }}>
             <strong>{instance.name}</strong> / {instance.flavor} / {instance.status}
-            <div style={subTextStyle}>image={instance.imageId.slice(0, 8)} · lastTransition={instance.lastTransitionAt}</div>
+            <div style={subTextStyle}>
+              image={instance.imageId.slice(0, 8)} · group={instance.autoscalingGroupId?.slice(0, 8) ?? "manual"} · lastTransition={instance.lastTransitionAt}
+            </div>
+            <div style={subTextStyle}>
+              health={instance.healthStatus} · restart={instance.restartCount} · metric=
+              {instance.latestMetric ? `${instance.latestMetric.cpuPercent}%/${instance.latestMetric.memoryPercent}%` : "none"}
+            </div>
             <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
               <button type="button" style={inlineButtonStyle} onClick={() => void handleAction(instance.id, "start")}>
                 Start

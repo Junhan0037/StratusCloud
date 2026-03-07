@@ -27,4 +27,11 @@ object IamAction {
     const val COMPUTE_INSTANCE_START = "compute:instance:start"
     const val COMPUTE_INSTANCE_STOP = "compute:instance:stop"
     const val COMPUTE_INSTANCE_TERMINATE = "compute:instance:terminate"
+    const val COMPUTE_AUTOSCALING_GROUP_CREATE = "compute:autoscaling-group:create"
+    const val COMPUTE_AUTOSCALING_GROUP_LIST = "compute:autoscaling-group:list"
+    const val COMPUTE_AUTOSCALING_GROUP_READ = "compute:autoscaling-group:read"
+    const val COMPUTE_AUTOSCALING_GROUP_EVALUATE = "compute:autoscaling-group:evaluate"
+    const val COMPUTE_AUTOSCALING_GROUP_RECONCILE = "compute:autoscaling-group:reconcile"
+    const val COMPUTE_INSTANCE_METRIC_WRITE = "compute:instance:metric:write"
+    const val COMPUTE_INSTANCE_HEALTH_WRITE = "compute:instance:health:write"
 }

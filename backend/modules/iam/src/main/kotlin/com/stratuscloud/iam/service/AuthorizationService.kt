@@ -84,7 +84,14 @@ class AuthorizationService(
                 IamAction.COMPUTE_INSTANCE_READ,
                 IamAction.COMPUTE_INSTANCE_START,
                 IamAction.COMPUTE_INSTANCE_STOP,
-                IamAction.COMPUTE_INSTANCE_TERMINATE
+                IamAction.COMPUTE_INSTANCE_TERMINATE,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_CREATE,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_LIST,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_READ,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_EVALUATE,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_RECONCILE,
+                IamAction.COMPUTE_INSTANCE_METRIC_WRITE,
+                IamAction.COMPUTE_INSTANCE_HEALTH_WRITE
             ),
             RoleType.DEVELOPER to setOf(
                 IamAction.PROJECT_READ,
@@ -97,13 +104,22 @@ class AuthorizationService(
                 IamAction.COMPUTE_INSTANCE_READ,
                 IamAction.COMPUTE_INSTANCE_START,
                 IamAction.COMPUTE_INSTANCE_STOP,
-                IamAction.COMPUTE_INSTANCE_TERMINATE
+                IamAction.COMPUTE_INSTANCE_TERMINATE,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_CREATE,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_LIST,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_READ,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_EVALUATE,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_RECONCILE,
+                IamAction.COMPUTE_INSTANCE_METRIC_WRITE,
+                IamAction.COMPUTE_INSTANCE_HEALTH_WRITE
             ),
             RoleType.VIEWER to setOf(
                 IamAction.PROJECT_READ,
                 IamAction.POLICY_LIST,
                 IamAction.COMPUTE_IMAGE_LIST,
                 IamAction.COMPUTE_IMAGE_READ,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_LIST,
+                IamAction.COMPUTE_AUTOSCALING_GROUP_READ,
                 IamAction.COMPUTE_INSTANCE_LIST,
                 IamAction.COMPUTE_INSTANCE_READ
             )

@@ -5,6 +5,9 @@ export type AuditResult = "SUCCESS" | "DENIED";
 export type ComputeImageStatus = "ACTIVE" | "DEPRECATED";
 export type ComputeInstanceStatus = "PENDING" | "RUNNING" | "STOPPED" | "TERMINATED";
 export type ComputeOsType = "LINUX" | "WINDOWS";
+export type ComputeHealthStatus = "UNKNOWN" | "HEALTHY" | "UNHEALTHY";
+export type ComputeHealthPolicy = "RESTART";
+export type ComputeAutoscalingGroupStatus = "ACTIVE";
 
 export interface ProjectResponse {
   id: string;
@@ -116,13 +119,61 @@ export interface ComputeInstanceResponse {
   tenantId: string;
   projectId: string;
   imageId: string;
+  autoscalingGroupId: string | null;
   name: string;
   flavor: string;
   status: ComputeInstanceStatus;
+  healthStatus: ComputeHealthStatus;
+  restartCount: number;
+  latestMetric: ComputeInstanceMetricResponse | null;
   userData: string | null;
   createdAt: string;
   updatedAt: string;
   lastTransitionAt: string;
+}
+
+export interface ComputeInstanceMetricResponse {
+  instanceId: string;
+  cpuPercent: number;
+  memoryPercent: number;
+  reportedAt: string;
+}
+
+export interface ComputeInstanceHealthResponse {
+  instanceId: string;
+  status: ComputeHealthStatus;
+  failureCount: number;
+  detail: string | null;
+  checkedAt: string;
+}
+
+export interface ComputeAutoscalingGroupResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  imageId: string;
+  flavor: string;
+  minInstances: number;
+  maxInstances: number;
+  desiredInstances: number;
+  currentInstances: number;
+  cpuScaleOutPercent: number;
+  cpuScaleInPercent: number;
+  memoryScaleOutPercent: number;
+  memoryScaleInPercent: number;
+  averageCpuPercent: number | null;
+  averageMemoryPercent: number | null;
+  healthPolicy: ComputeHealthPolicy;
+  failureThreshold: number;
+  status: ComputeAutoscalingGroupStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ComputeHealthReconcileResponse {
+  restartedInstanceIds: string[];
+  replacementInstanceIds: string[];
 }
 
 export interface AuthSession {
@@ -383,6 +434,11 @@ interface ComputeImageFilter {
   tag?: string;
 }
 
+interface ComputeAutoscalingGroupFilter {
+  tenantId: string;
+  projectId: string;
+}
+
 export async function listAuditLogs(filters: AuditLogFilter): Promise<AuditLogResponse[]> {
   const params = new URLSearchParams({ tenantId: filters.tenantId });
   if (filters.projectId?.trim()) {
@@ -494,5 +550,92 @@ export async function terminateComputeInstance(instanceId: string): Promise<Comp
   return request<ComputeInstanceResponse>(`/v1/compute/instances/${instanceId}`, {
     method: "DELETE",
     headers: buildHeaders()
+  });
+}
+
+export async function createComputeAutoscalingGroup(
+  tenantId: string,
+  projectId: string,
+  name: string,
+  imageId: string,
+  flavor: string,
+  minInstances: number,
+  maxInstances: number,
+  cpuScaleOutPercent: number,
+  cpuScaleInPercent: number,
+  memoryScaleOutPercent: number,
+  memoryScaleInPercent: number,
+  failureThreshold = 3,
+  healthPolicy: ComputeHealthPolicy = "RESTART"
+): Promise<ComputeAutoscalingGroupResponse> {
+  return request<ComputeAutoscalingGroupResponse>("/v1/compute/autoscaling-groups", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      tenantId,
+      projectId,
+      name,
+      imageId,
+      flavor,
+      minInstances,
+      maxInstances,
+      cpuScaleOutPercent,
+      cpuScaleInPercent,
+      memoryScaleOutPercent,
+      memoryScaleInPercent,
+      failureThreshold,
+      healthPolicy
+    })
+  });
+}
+
+export async function listComputeAutoscalingGroups(
+  filters: ComputeAutoscalingGroupFilter
+): Promise<ComputeAutoscalingGroupResponse[]> {
+  const params = new URLSearchParams({ tenantId: filters.tenantId, projectId: filters.projectId });
+  return request<ComputeAutoscalingGroupResponse[]>(`/v1/compute/autoscaling-groups?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function evaluateComputeAutoscalingGroup(groupId: string): Promise<ComputeAutoscalingGroupResponse> {
+  return request<ComputeAutoscalingGroupResponse>(`/v1/compute/autoscaling-groups/${groupId}:evaluate`, {
+    method: "POST",
+    headers: buildHeaders()
+  });
+}
+
+export async function reconcileComputeGroupHealth(groupId: string): Promise<ComputeHealthReconcileResponse> {
+  return request<ComputeHealthReconcileResponse>(`/v1/compute/autoscaling-groups/${groupId}:reconcile-health`, {
+    method: "POST",
+    headers: buildHeaders()
+  });
+}
+
+export async function writeComputeInstanceMetric(
+  instanceId: string,
+  cpuPercent: number,
+  memoryPercent: number
+): Promise<ComputeInstanceMetricResponse> {
+  return request<ComputeInstanceMetricResponse>(`/v1/compute/instances/${instanceId}/metrics`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ cpuPercent, memoryPercent })
+  });
+}
+
+export async function writeComputeInstanceHealth(
+  instanceId: string,
+  status: ComputeHealthStatus,
+  detail?: string
+): Promise<ComputeInstanceHealthResponse> {
+  return request<ComputeInstanceHealthResponse>(`/v1/compute/instances/${instanceId}/health`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      status,
+      detail: detail?.trim() ? detail : null
+    })
   });
 }
