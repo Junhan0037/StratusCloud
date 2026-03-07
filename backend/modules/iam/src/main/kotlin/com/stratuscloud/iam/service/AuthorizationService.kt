@@ -69,7 +69,13 @@ class AuthorizationService(
                 IamAction.ROLE_POLICY_BIND,
                 IamAction.API_KEY_CREATE,
                 IamAction.API_KEY_REVOKE,
-                IamAction.API_KEY_LIST
+                IamAction.API_KEY_LIST,
+                IamAction.SECRET_CREATE,
+                IamAction.SECRET_LIST,
+                IamAction.SECRET_READ,
+                IamAction.SECRET_ROTATE,
+                IamAction.SECRET_VERSION_REVOKE,
+                IamAction.AUDIT_LOG_LIST
             ),
             RoleType.DEVELOPER to setOf(
                 IamAction.PROJECT_READ,

@@ -1,10 +1,11 @@
 package com.stratuscloud.api.iam.controller
 
 import com.stratuscloud.api.common.security.AuthContextHolder
+import com.stratuscloud.api.common.security.ApiAuditRecorder
+import com.stratuscloud.api.common.security.AuthorizationFacade
 import com.stratuscloud.api.iam.dto.AddMembershipRequest
 import com.stratuscloud.api.iam.dto.MembershipResponse
 import com.stratuscloud.api.iam.dto.UpdateMembershipRoleRequest
-import com.stratuscloud.iam.service.AuthorizationService
 import com.stratuscloud.iam.service.IamAction
 import com.stratuscloud.iam.service.MembershipService
 import com.stratuscloud.iam.service.ProjectService
@@ -24,7 +25,8 @@ import java.util.UUID
 class MembershipController(
     private val membershipService: MembershipService,
     private val projectService: ProjectService,
-    private val authorizationService: AuthorizationService
+    private val authorizationFacade: AuthorizationFacade,
+    private val apiAuditRecorder: ApiAuditRecorder
 ) {
 
     @PostMapping
@@ -34,14 +36,28 @@ class MembershipController(
     ): ResponseEntity<MembershipResponse> {
         val principal = AuthContextHolder.getRequired()
         val project = projectService.getProject(projectId)
-        authorizationService.authorize(
+        authorizationFacade.authorize(
             principal = principal,
             tenantId = project.tenantId,
             projectId = projectId,
             action = IamAction.MEMBERSHIP_ADD,
-            resource = "project:$projectId"
+            resource = "project:$projectId",
+            resourceType = "MEMBERSHIP",
+            resourceId = request.userId.toString()
         )
         val created = membershipService.addMember(projectId, request.userId, request.role, principal.actorId)
+        apiAuditRecorder.recordSuccess(
+            principal = principal,
+            tenantId = created.tenantId,
+            projectId = created.projectId,
+            action = IamAction.MEMBERSHIP_ADD,
+            resourceType = "MEMBERSHIP",
+            resourceId = created.id.toString(),
+            metadata = mapOf(
+                "userId" to created.userId.toString(),
+                "role" to created.role.name
+            )
+        )
         return ResponseEntity.status(HttpStatus.CREATED).body(MembershipResponse.from(created))
     }
 
@@ -53,14 +69,28 @@ class MembershipController(
     ): ResponseEntity<MembershipResponse> {
         val principal = AuthContextHolder.getRequired()
         val project = projectService.getProject(projectId)
-        authorizationService.authorize(
+        authorizationFacade.authorize(
             principal = principal,
             tenantId = project.tenantId,
             projectId = projectId,
             action = IamAction.MEMBERSHIP_ROLE_UPDATE,
-            resource = "project:$projectId"
+            resource = "project:$projectId",
+            resourceType = "MEMBERSHIP",
+            resourceId = userId.toString()
         )
         val updated = membershipService.changeRole(projectId, userId, request.role)
+        apiAuditRecorder.recordSuccess(
+            principal = principal,
+            tenantId = updated.tenantId,
+            projectId = updated.projectId,
+            action = IamAction.MEMBERSHIP_ROLE_UPDATE,
+            resourceType = "MEMBERSHIP",
+            resourceId = updated.id.toString(),
+            metadata = mapOf(
+                "userId" to updated.userId.toString(),
+                "role" to updated.role.name
+            )
+        )
         return ResponseEntity.ok(MembershipResponse.from(updated))
     }
 }

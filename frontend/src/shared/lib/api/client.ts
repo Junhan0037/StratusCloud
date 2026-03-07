@@ -1,5 +1,7 @@
 export type RoleType = "OWNER" | "ADMIN" | "DEVELOPER" | "VIEWER";
 export type ApiKeyStatus = "ACTIVE" | "REVOKED";
+export type SecretVersionStatus = "ACTIVE" | "REVOKED";
+export type AuditResult = "SUCCESS" | "DENIED";
 
 export interface ProjectResponse {
   id: string;
@@ -60,6 +62,39 @@ export interface ApiKeyResponse {
   revokedAt: string | null;
   createdAt: string;
   rawKey?: string;
+}
+
+export interface SecretVersionResponse {
+  id: string;
+  version: number;
+  status: SecretVersionStatus;
+  revokedAt: string | null;
+  createdAt: string;
+  value?: string;
+}
+
+export interface SecretResponse {
+  id: string;
+  tenantId: string;
+  projectId: string | null;
+  name: string;
+  latestVersion: number;
+  createdAt: string;
+  currentVersion?: SecretVersionResponse | null;
+}
+
+export interface AuditLogResponse {
+  id: string;
+  traceId: string;
+  actorId: string;
+  tenantId: string;
+  projectId: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  result: AuditResult;
+  metadata: Record<string, unknown>;
+  occurredAt: string;
 }
 
 export interface AuthSession {
@@ -249,6 +284,90 @@ export async function listApiKeys(tenantId: string): Promise<ApiKeyResponse[]> {
 export async function revokeApiKey(keyId: string): Promise<ApiKeyResponse> {
   return request<ApiKeyResponse>(`/v1/iam/api-keys/${keyId}`, {
     method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createSecret(
+  tenantId: string,
+  name: string,
+  value: string,
+  projectId?: string
+): Promise<SecretResponse> {
+  return request<SecretResponse>("/v1/iam/secrets", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      tenantId,
+      projectId: projectId?.trim() ? projectId.trim() : null,
+      name,
+      value
+    })
+  });
+}
+
+export async function listSecrets(tenantId: string, projectId?: string): Promise<SecretResponse[]> {
+  const params = new URLSearchParams({ tenantId });
+  if (projectId?.trim()) {
+    params.set("projectId", projectId.trim());
+  }
+  return request<SecretResponse[]>(`/v1/iam/secrets?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function listSecretVersions(secretId: string): Promise<SecretVersionResponse[]> {
+  return request<SecretVersionResponse[]>(`/v1/iam/secrets/${secretId}/versions`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function rotateSecret(secretId: string, value: string): Promise<SecretResponse> {
+  return request<SecretResponse>(`/v1/iam/secrets/${secretId}:rotate`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ value })
+  });
+}
+
+export async function revokeSecretVersion(secretId: string, versionId: string): Promise<SecretVersionResponse> {
+  return request<SecretVersionResponse>(`/v1/iam/secrets/${secretId}/versions/${versionId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+interface AuditLogFilter {
+  tenantId: string;
+  projectId?: string;
+  actorId?: string;
+  resourceType?: string;
+  action?: string;
+  result?: AuditResult | "";
+}
+
+export async function listAuditLogs(filters: AuditLogFilter): Promise<AuditLogResponse[]> {
+  const params = new URLSearchParams({ tenantId: filters.tenantId });
+  if (filters.projectId?.trim()) {
+    params.set("projectId", filters.projectId.trim());
+  }
+  if (filters.actorId?.trim()) {
+    params.set("actorId", filters.actorId.trim());
+  }
+  if (filters.resourceType?.trim()) {
+    params.set("resourceType", filters.resourceType.trim());
+  }
+  if (filters.action?.trim()) {
+    params.set("action", filters.action.trim());
+  }
+  if (filters.result?.trim()) {
+    params.set("result", filters.result.trim());
+  }
+
+  return request<AuditLogResponse[]>(`/v1/audit/logs?${params.toString()}`, {
+    method: "GET",
     headers: buildHeaders()
   });
 }

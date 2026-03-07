@@ -1,9 +1,10 @@
 package com.stratuscloud.api.iam.controller
 
 import com.stratuscloud.api.common.security.AuthContextHolder
+import com.stratuscloud.api.common.security.ApiAuditRecorder
+import com.stratuscloud.api.common.security.AuthorizationFacade
 import com.stratuscloud.api.iam.dto.CreateUserRequest
 import com.stratuscloud.api.iam.dto.UserResponse
-import com.stratuscloud.iam.service.AuthorizationService
 import com.stratuscloud.iam.service.IamAction
 import com.stratuscloud.iam.service.UserService
 import jakarta.validation.Valid
@@ -19,7 +20,8 @@ import java.util.UUID
 @RequestMapping("/v1/iam/users")
 class IamUserController(
     private val userService: UserService,
-    private val authorizationService: AuthorizationService
+    private val authorizationFacade: AuthorizationFacade,
+    private val apiAuditRecorder: ApiAuditRecorder
 ) {
 
     @PostMapping
@@ -28,14 +30,26 @@ class IamUserController(
     ): ResponseEntity<UserResponse> {
         val principal = AuthContextHolder.getRequired()
         val tenantId = principal.tenantId ?: LEGACY_TENANT_ID
-        authorizationService.authorize(
+        authorizationFacade.authorize(
             principal = principal,
             tenantId = tenantId,
             projectId = null,
             action = IamAction.USER_CREATE,
-            resource = "tenant:$tenantId"
+            resource = "tenant:$tenantId",
+            resourceType = "USER",
+            resourceId = null,
+            metadata = mapOf("email" to request.email)
         )
         val created = userService.createUser(request.email, request.displayName, principal.actorId)
+        apiAuditRecorder.recordSuccess(
+            principal = principal,
+            tenantId = tenantId,
+            projectId = null,
+            action = IamAction.USER_CREATE,
+            resourceType = "USER",
+            resourceId = created.id.toString(),
+            metadata = mapOf("email" to created.email)
+        )
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(created))
     }
 

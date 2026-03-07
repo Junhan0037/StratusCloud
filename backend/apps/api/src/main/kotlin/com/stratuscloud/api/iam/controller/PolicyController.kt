@@ -2,9 +2,10 @@ package com.stratuscloud.api.iam.controller
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.stratuscloud.api.common.security.AuthContextHolder
+import com.stratuscloud.api.common.security.ApiAuditRecorder
+import com.stratuscloud.api.common.security.AuthorizationFacade
 import com.stratuscloud.api.iam.dto.CreatePolicyRequest
 import com.stratuscloud.api.iam.dto.PolicyResponse
-import com.stratuscloud.iam.service.AuthorizationService
 import com.stratuscloud.iam.service.IamAction
 import com.stratuscloud.iam.service.PolicyService
 import jakarta.validation.Valid
@@ -22,7 +23,8 @@ import java.util.UUID
 @RequestMapping("/v1/iam/policies")
 class PolicyController(
     private val policyService: PolicyService,
-    private val authorizationService: AuthorizationService,
+    private val authorizationFacade: AuthorizationFacade,
+    private val apiAuditRecorder: ApiAuditRecorder,
     private val objectMapper: ObjectMapper
 ) {
 
@@ -31,12 +33,15 @@ class PolicyController(
         @Valid @RequestBody request: CreatePolicyRequest
     ): ResponseEntity<PolicyResponse> {
         val principal = AuthContextHolder.getRequired()
-        authorizationService.authorize(
+        authorizationFacade.authorize(
             principal = principal,
             tenantId = request.tenantId,
             projectId = null,
             action = IamAction.POLICY_CREATE,
-            resource = "tenant:${request.tenantId}"
+            resource = "tenant:${request.tenantId}",
+            resourceType = "POLICY",
+            resourceId = null,
+            metadata = mapOf("name" to request.name)
         )
 
         val created = policyService.createPolicy(
@@ -46,6 +51,15 @@ class PolicyController(
             document = objectMapper.writeValueAsString(request.document),
             actorId = principal.actorId
         )
+        apiAuditRecorder.recordSuccess(
+            principal = principal,
+            tenantId = created.tenantId,
+            projectId = null,
+            action = IamAction.POLICY_CREATE,
+            resourceType = "POLICY",
+            resourceId = created.id.toString(),
+            metadata = mapOf("name" to created.name)
+        )
         return ResponseEntity.status(HttpStatus.CREATED).body(PolicyResponse.from(created, objectMapper))
     }
 
@@ -54,12 +68,14 @@ class PolicyController(
         @RequestParam tenantId: UUID
     ): ResponseEntity<List<PolicyResponse>> {
         val principal = AuthContextHolder.getRequired()
-        authorizationService.authorize(
+        authorizationFacade.authorize(
             principal = principal,
             tenantId = tenantId,
             projectId = null,
             action = IamAction.POLICY_LIST,
-            resource = "tenant:$tenantId"
+            resource = "tenant:$tenantId",
+            resourceType = "POLICY",
+            resourceId = tenantId.toString()
         )
         val response = policyService.listPolicies(tenantId).map { PolicyResponse.from(it, objectMapper) }
         return ResponseEntity.ok(response)

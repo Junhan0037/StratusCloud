@@ -7,8 +7,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 
 // API 애플리케이션의 시작점이다.
 @SpringBootApplication(scanBasePackages = ["com.stratuscloud"])
-@EntityScan(basePackages = ["com.stratuscloud.iam.domain"])
-@EnableJpaRepositories(basePackages = ["com.stratuscloud.iam.repository"])
+@EntityScan(basePackages = ["com.stratuscloud.iam.domain", "com.stratuscloud.audit.domain"])
+@EnableJpaRepositories(basePackages = ["com.stratuscloud.iam.repository", "com.stratuscloud.audit.repository"])
 class StratusCloudApiApplication
 
 fun main(args: Array<String>) {

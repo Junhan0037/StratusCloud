@@ -1,9 +1,10 @@
 package com.stratuscloud.api.iam.controller
 
 import com.stratuscloud.api.common.security.AuthContextHolder
+import com.stratuscloud.api.common.security.ApiAuditRecorder
+import com.stratuscloud.api.common.security.AuthorizationFacade
 import com.stratuscloud.api.iam.dto.CreateProjectRequest
 import com.stratuscloud.api.iam.dto.ProjectResponse
-import com.stratuscloud.iam.service.AuthorizationService
 import com.stratuscloud.iam.service.IamAction
 import com.stratuscloud.iam.service.ProjectService
 import jakarta.validation.Valid
@@ -21,7 +22,8 @@ import java.util.UUID
 @RequestMapping("/v1/projects")
 class ProjectController(
     private val projectService: ProjectService,
-    private val authorizationService: AuthorizationService
+    private val authorizationFacade: AuthorizationFacade,
+    private val apiAuditRecorder: ApiAuditRecorder
 ) {
 
     @PostMapping
@@ -29,14 +31,26 @@ class ProjectController(
         @Valid @RequestBody request: CreateProjectRequest
     ): ResponseEntity<ProjectResponse> {
         val principal = AuthContextHolder.getRequired()
-        authorizationService.authorize(
+        authorizationFacade.authorize(
             principal = principal,
             tenantId = request.tenantId,
             projectId = null,
             action = IamAction.PROJECT_CREATE,
-            resource = "project:*"
+            resource = "project:*",
+            resourceType = "PROJECT",
+            resourceId = null,
+            metadata = mapOf("name" to request.name)
         )
         val created = projectService.createProject(request.tenantId, request.name, principal.actorId)
+        apiAuditRecorder.recordSuccess(
+            principal = principal,
+            tenantId = created.tenantId,
+            projectId = created.id,
+            action = IamAction.PROJECT_CREATE,
+            resourceType = "PROJECT",
+            resourceId = created.id.toString(),
+            metadata = mapOf("name" to created.name)
+        )
         return ResponseEntity.status(HttpStatus.CREATED).body(ProjectResponse.from(created))
     }
 
@@ -44,12 +58,14 @@ class ProjectController(
     fun getProject(@PathVariable projectId: UUID): ResponseEntity<ProjectResponse> {
         val principal = AuthContextHolder.getRequired()
         val project = projectService.getProject(projectId)
-        authorizationService.authorize(
+        authorizationFacade.authorize(
             principal = principal,
             tenantId = project.tenantId,
             projectId = projectId,
             action = IamAction.PROJECT_READ,
-            resource = "project:$projectId"
+            resource = "project:$projectId",
+            resourceType = "PROJECT",
+            resourceId = projectId.toString()
         )
         return ResponseEntity.ok(ProjectResponse.from(project))
     }
