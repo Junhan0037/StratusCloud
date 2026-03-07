@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: StratusCloud Public API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     StratusCloud 1차 MVP 공개 REST API 계약서.
-    Week 3에서는 IAM-2 범위(OIDC JWT/API Key/Policy)를 포함한다.
+    Week 5에서는 Compute-1 범위(Image/Instance)를 포함한다.
 servers:
   - url: https://api.stratuscloud.local
     description: local development gateway
@@ -18,6 +18,8 @@ tags:
     description: 운영 상태 조회 API
   - name: iam
     description: IAM 및 프로젝트 관리 API
+  - name: compute
+    description: Compute Image 및 Instance API
   - name: audit
     description: 감사로그 조회 API
 
@@ -423,6 +425,203 @@ paths:
               schema:
                 $ref: '#/components/schemas/SecretVersion'
 
+  /v1/compute/images:
+    post:
+      tags: [compute]
+      summary: 베이스 이미지를 등록한다.
+      operationId: createComputeImage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComputeImageRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeImage'
+    get:
+      tags: [compute]
+      summary: 이미지 카탈로그를 조회한다.
+      operationId: listComputeImages
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ComputeImageStatus'
+        - name: osType
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ComputeOsType'
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComputeImage'
+
+  /v1/compute/images/{imageId}:
+    get:
+      tags: [compute]
+      summary: 이미지 단건을 조회한다.
+      operationId: getComputeImage
+      parameters:
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeImage'
+
+  /v1/compute/instances:
+    post:
+      tags: [compute]
+      summary: 인스턴스를 생성한다.
+      operationId: createComputeInstance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComputeInstanceRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeInstance'
+    get:
+      tags: [compute]
+      summary: 프로젝트의 인스턴스 목록을 조회한다.
+      operationId: listComputeInstances
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComputeInstance'
+
+  /v1/compute/instances/{instanceId}:
+    get:
+      tags: [compute]
+      summary: 인스턴스 단건을 조회한다.
+      operationId: getComputeInstance
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeInstance'
+    delete:
+      tags: [compute]
+      summary: 인스턴스를 종료한다.
+      operationId: terminateComputeInstance
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 종료 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeInstance'
+
+  /v1/compute/instances/{instanceId}:start:
+    post:
+      tags: [compute]
+      summary: 정지된 인스턴스를 시작한다.
+      operationId: startComputeInstance
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 시작 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeInstance'
+
+  /v1/compute/instances/{instanceId}:stop:
+    post:
+      tags: [compute]
+      summary: 실행 중인 인스턴스를 정지한다.
+      operationId: stopComputeInstance
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 정지 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputeInstance'
+
   /v1/audit/logs:
     get:
       tags: [audit]
@@ -513,6 +712,18 @@ components:
     AuditResult:
       type: string
       enum: [SUCCESS, DENIED]
+
+    ComputeImageStatus:
+      type: string
+      enum: [ACTIVE, DEPRECATED]
+
+    ComputeInstanceStatus:
+      type: string
+      enum: [PENDING, RUNNING, STOPPED, TERMINATED]
+
+    ComputeOsType:
+      type: string
+      enum: [LINUX, WINDOWS]
 
     CreateProjectRequest:
       type: object
@@ -842,6 +1053,116 @@ components:
           allOf:
             - $ref: '#/components/schemas/SecretVersion'
           nullable: true
+
+    CreateComputeImageRequest:
+      type: object
+      required: [tenantId, name, version, osType]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        version:
+          type: string
+          minLength: 1
+          maxLength: 50
+        osType:
+          $ref: '#/components/schemas/ComputeOsType'
+        status:
+          $ref: '#/components/schemas/ComputeImageStatus'
+        tags:
+          type: array
+          items:
+            type: string
+
+    ComputeImage:
+      type: object
+      required: [id, tenantId, name, version, osType, status, tags, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: string
+        osType:
+          $ref: '#/components/schemas/ComputeOsType'
+        status:
+          $ref: '#/components/schemas/ComputeImageStatus'
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateComputeInstanceRequest:
+      type: object
+      required: [tenantId, projectId, name, imageId, flavor]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        imageId:
+          type: string
+          format: uuid
+        flavor:
+          type: string
+          enum: [nano, small, medium]
+        userData:
+          type: string
+          nullable: true
+          maxLength: 8192
+
+    ComputeInstance:
+      type: object
+      required: [id, tenantId, projectId, imageId, name, flavor, status, createdAt, updatedAt, lastTransitionAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        imageId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        flavor:
+          type: string
+        status:
+          $ref: '#/components/schemas/ComputeInstanceStatus'
+        userData:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastTransitionAt:
+          type: string
+          format: date-time
 
     AuditLog:
       type: object

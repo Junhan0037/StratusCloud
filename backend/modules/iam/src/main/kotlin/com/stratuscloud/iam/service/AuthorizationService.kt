@@ -75,16 +75,37 @@ class AuthorizationService(
                 IamAction.SECRET_READ,
                 IamAction.SECRET_ROTATE,
                 IamAction.SECRET_VERSION_REVOKE,
-                IamAction.AUDIT_LOG_LIST
+                IamAction.AUDIT_LOG_LIST,
+                IamAction.COMPUTE_IMAGE_CREATE,
+                IamAction.COMPUTE_IMAGE_LIST,
+                IamAction.COMPUTE_IMAGE_READ,
+                IamAction.COMPUTE_INSTANCE_CREATE,
+                IamAction.COMPUTE_INSTANCE_LIST,
+                IamAction.COMPUTE_INSTANCE_READ,
+                IamAction.COMPUTE_INSTANCE_START,
+                IamAction.COMPUTE_INSTANCE_STOP,
+                IamAction.COMPUTE_INSTANCE_TERMINATE
             ),
             RoleType.DEVELOPER to setOf(
                 IamAction.PROJECT_READ,
                 IamAction.POLICY_LIST,
-                IamAction.API_KEY_LIST
+                IamAction.API_KEY_LIST,
+                IamAction.COMPUTE_IMAGE_LIST,
+                IamAction.COMPUTE_IMAGE_READ,
+                IamAction.COMPUTE_INSTANCE_CREATE,
+                IamAction.COMPUTE_INSTANCE_LIST,
+                IamAction.COMPUTE_INSTANCE_READ,
+                IamAction.COMPUTE_INSTANCE_START,
+                IamAction.COMPUTE_INSTANCE_STOP,
+                IamAction.COMPUTE_INSTANCE_TERMINATE
             ),
             RoleType.VIEWER to setOf(
                 IamAction.PROJECT_READ,
-                IamAction.POLICY_LIST
+                IamAction.POLICY_LIST,
+                IamAction.COMPUTE_IMAGE_LIST,
+                IamAction.COMPUTE_IMAGE_READ,
+                IamAction.COMPUTE_INSTANCE_LIST,
+                IamAction.COMPUTE_INSTANCE_READ
             )
         )
     }

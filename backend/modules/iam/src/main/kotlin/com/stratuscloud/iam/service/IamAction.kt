@@ -18,4 +18,13 @@ object IamAction {
     const val SECRET_ROTATE = "iam:secret:rotate"
     const val SECRET_VERSION_REVOKE = "iam:secret-version:revoke"
     const val AUDIT_LOG_LIST = "iam:audit-log:list"
+    const val COMPUTE_IMAGE_CREATE = "compute:image:create"
+    const val COMPUTE_IMAGE_LIST = "compute:image:list"
+    const val COMPUTE_IMAGE_READ = "compute:image:read"
+    const val COMPUTE_INSTANCE_CREATE = "compute:instance:create"
+    const val COMPUTE_INSTANCE_LIST = "compute:instance:list"
+    const val COMPUTE_INSTANCE_READ = "compute:instance:read"
+    const val COMPUTE_INSTANCE_START = "compute:instance:start"
+    const val COMPUTE_INSTANCE_STOP = "compute:instance:stop"
+    const val COMPUTE_INSTANCE_TERMINATE = "compute:instance:terminate"
 }

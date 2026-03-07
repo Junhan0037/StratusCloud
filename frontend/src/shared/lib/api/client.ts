@@ -2,6 +2,9 @@ export type RoleType = "OWNER" | "ADMIN" | "DEVELOPER" | "VIEWER";
 export type ApiKeyStatus = "ACTIVE" | "REVOKED";
 export type SecretVersionStatus = "ACTIVE" | "REVOKED";
 export type AuditResult = "SUCCESS" | "DENIED";
+export type ComputeImageStatus = "ACTIVE" | "DEPRECATED";
+export type ComputeInstanceStatus = "PENDING" | "RUNNING" | "STOPPED" | "TERMINATED";
+export type ComputeOsType = "LINUX" | "WINDOWS";
 
 export interface ProjectResponse {
   id: string;
@@ -95,6 +98,31 @@ export interface AuditLogResponse {
   result: AuditResult;
   metadata: Record<string, unknown>;
   occurredAt: string;
+}
+
+export interface ComputeImageResponse {
+  id: string;
+  tenantId: string;
+  name: string;
+  version: string;
+  osType: ComputeOsType;
+  status: ComputeImageStatus;
+  tags: string[];
+  createdAt: string;
+}
+
+export interface ComputeInstanceResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  imageId: string;
+  name: string;
+  flavor: string;
+  status: ComputeInstanceStatus;
+  userData: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastTransitionAt: string;
 }
 
 export interface AuthSession {
@@ -348,6 +376,13 @@ interface AuditLogFilter {
   result?: AuditResult | "";
 }
 
+interface ComputeImageFilter {
+  tenantId: string;
+  status?: ComputeImageStatus | "";
+  osType?: ComputeOsType | "";
+  tag?: string;
+}
+
 export async function listAuditLogs(filters: AuditLogFilter): Promise<AuditLogResponse[]> {
   const params = new URLSearchParams({ tenantId: filters.tenantId });
   if (filters.projectId?.trim()) {
@@ -368,6 +403,96 @@ export async function listAuditLogs(filters: AuditLogFilter): Promise<AuditLogRe
 
   return request<AuditLogResponse[]>(`/v1/audit/logs?${params.toString()}`, {
     method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function createComputeImage(
+  tenantId: string,
+  name: string,
+  version: string,
+  osType: ComputeOsType,
+  tags: string[],
+  status: ComputeImageStatus = "ACTIVE"
+): Promise<ComputeImageResponse> {
+  return request<ComputeImageResponse>("/v1/compute/images", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      tenantId,
+      name,
+      version,
+      osType,
+      status,
+      tags
+    })
+  });
+}
+
+export async function listComputeImages(filters: ComputeImageFilter): Promise<ComputeImageResponse[]> {
+  const params = new URLSearchParams({ tenantId: filters.tenantId });
+  if (filters.status?.trim()) {
+    params.set("status", filters.status.trim());
+  }
+  if (filters.osType?.trim()) {
+    params.set("osType", filters.osType.trim());
+  }
+  if (filters.tag?.trim()) {
+    params.set("tag", filters.tag.trim());
+  }
+  return request<ComputeImageResponse[]>(`/v1/compute/images?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function createComputeInstance(
+  tenantId: string,
+  projectId: string,
+  name: string,
+  imageId: string,
+  flavor: string,
+  userData?: string
+): Promise<ComputeInstanceResponse> {
+  return request<ComputeInstanceResponse>("/v1/compute/instances", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      tenantId,
+      projectId,
+      name,
+      imageId,
+      flavor,
+      userData: userData?.trim() ? userData : null
+    })
+  });
+}
+
+export async function listComputeInstances(tenantId: string, projectId: string): Promise<ComputeInstanceResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<ComputeInstanceResponse[]>(`/v1/compute/instances?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function startComputeInstance(instanceId: string): Promise<ComputeInstanceResponse> {
+  return request<ComputeInstanceResponse>(`/v1/compute/instances/${instanceId}:start`, {
+    method: "POST",
+    headers: buildHeaders()
+  });
+}
+
+export async function stopComputeInstance(instanceId: string): Promise<ComputeInstanceResponse> {
+  return request<ComputeInstanceResponse>(`/v1/compute/instances/${instanceId}:stop`, {
+    method: "POST",
+    headers: buildHeaders()
+  });
+}
+
+export async function terminateComputeInstance(instanceId: string): Promise<ComputeInstanceResponse> {
+  return request<ComputeInstanceResponse>(`/v1/compute/instances/${instanceId}`, {
+    method: "DELETE",
     headers: buildHeaders()
   });
 }
