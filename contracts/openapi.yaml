@@ -4,7 +4,7 @@ info:
   version: 0.5.0
   description: |
     StratusCloud 1차 MVP 공개 REST API 계약서.
-    Week 6에서는 Compute-2 범위(Autoscaling/Healthcheck)를 포함한다.
+    Week 7에서는 Network-1 범위(VPC/Subnet/SG/Route)를 포함한다.
 servers:
   - url: https://api.stratuscloud.local
     description: local development gateway
@@ -20,6 +20,8 @@ tags:
     description: IAM 및 프로젝트 관리 API
   - name: compute
     description: Compute Image 및 Instance API
+  - name: network
+    description: VPC/Subnet/Route Table/Security Group API
   - name: audit
     description: 감사로그 조회 API
 
@@ -779,6 +781,436 @@ paths:
               schema:
                 $ref: '#/components/schemas/ComputeHealthReconcileResult'
 
+  /v1/network/vpcs:
+    post:
+      tags: [network]
+      summary: 프로젝트에 VPC를 생성한다.
+      operationId: createVpc
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVpcRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vpc'
+    get:
+      tags: [network]
+      summary: 프로젝트의 VPC 목록을 조회한다.
+      operationId: listVpcs
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vpc'
+
+  /v1/network/vpcs/{vpcId}:
+    get:
+      tags: [network]
+      summary: VPC 단건 정보를 조회한다.
+      operationId: getVpc
+      parameters:
+        - name: vpcId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vpc'
+    delete:
+      tags: [network]
+      summary: 하위 리소스가 없는 VPC를 삭제한다.
+      operationId: deleteVpc
+      parameters:
+        - name: vpcId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/subnets:
+    post:
+      tags: [network]
+      summary: VPC 내부에 Subnet을 생성한다.
+      operationId: createSubnet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubnetRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subnet'
+    get:
+      tags: [network]
+      summary: 프로젝트 또는 VPC 범위의 Subnet 목록을 조회한다.
+      operationId: listSubnets
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: vpcId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subnet'
+
+  /v1/network/subnets/{subnetId}:
+    get:
+      tags: [network]
+      summary: Subnet 단건 정보를 조회한다.
+      operationId: getSubnet
+      parameters:
+        - name: subnetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subnet'
+    delete:
+      tags: [network]
+      summary: Subnet을 삭제한다.
+      operationId: deleteSubnet
+      parameters:
+        - name: subnetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/route-tables:
+    post:
+      tags: [network]
+      summary: VPC에 Route Table을 생성한다.
+      operationId: createRouteTable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRouteTableRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteTable'
+    get:
+      tags: [network]
+      summary: VPC의 Route Table 목록을 조회한다.
+      operationId: listRouteTables
+      parameters:
+        - name: vpcId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RouteTable'
+
+  /v1/network/route-tables/{routeTableId}:
+    get:
+      tags: [network]
+      summary: Route Table 상세를 조회한다.
+      operationId: getRouteTable
+      parameters:
+        - name: routeTableId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteTable'
+    delete:
+      tags: [network]
+      summary: 기본 테이블이 아니고 association이 없는 Route Table을 삭제한다.
+      operationId: deleteRouteTable
+      parameters:
+        - name: routeTableId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/route-tables/{routeTableId}/routes:
+    post:
+      tags: [network]
+      summary: Route Table에 Route를 추가한다.
+      operationId: createRoute
+      parameters:
+        - name: routeTableId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRouteRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+
+  /v1/network/routes/{routeId}:
+    delete:
+      tags: [network]
+      summary: local이 아닌 Route를 삭제한다.
+      operationId: deleteRoute
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/route-tables/{routeTableId}/associations:
+    post:
+      tags: [network]
+      summary: Subnet을 Route Table에 연결한다.
+      operationId: associateSubnetRouteTable
+      parameters:
+        - name: routeTableId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRouteTableAssociationRequest'
+      responses:
+        '201':
+          description: 연결 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteTableAssociation'
+
+  /v1/network/route-table-associations/{associationId}:
+    delete:
+      tags: [network]
+      summary: association을 제거하고 기본 Route Table로 되돌린다.
+      operationId: deleteRouteTableAssociation
+      parameters:
+        - name: associationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 복구 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteTableAssociation'
+
+  /v1/network/security-groups:
+    post:
+      tags: [network]
+      summary: Security Group을 생성한다.
+      operationId: createSecurityGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSecurityGroupRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroup'
+    get:
+      tags: [network]
+      summary: 프로젝트의 Security Group 목록을 조회한다.
+      operationId: listSecurityGroups
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SecurityGroup'
+
+  /v1/network/security-groups/{securityGroupId}:
+    get:
+      tags: [network]
+      summary: Security Group 상세를 조회한다.
+      operationId: getSecurityGroup
+      parameters:
+        - name: securityGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroup'
+    delete:
+      tags: [network]
+      summary: Security Group을 삭제한다.
+      operationId: deleteSecurityGroup
+      parameters:
+        - name: securityGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/security-groups/{securityGroupId}/rules:
+    put:
+      tags: [network]
+      summary: Security Group 규칙 전체를 교체한다.
+      operationId: replaceSecurityGroupRules
+      parameters:
+        - name: securityGroupId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceSecurityGroupRulesRequest'
+      responses:
+        '200':
+          description: 교체 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecurityGroup'
+
   /v1/audit/logs:
     get:
       tags: [audit]
@@ -893,6 +1325,325 @@ components:
     ComputeOsType:
       type: string
       enum: [LINUX, WINDOWS]
+
+    NetworkRouteTargetType:
+      type: string
+      enum: [LOCAL, INTERNET_GATEWAY]
+
+    NetworkRuleDirection:
+      type: string
+      enum: [INGRESS, EGRESS]
+
+    NetworkRuleProtocol:
+      type: string
+      enum: [TCP, UDP, ICMP, ALL]
+
+    CreateVpcRequest:
+      type: object
+      required: [tenantId, projectId, name, cidrBlock]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        cidrBlock:
+          type: string
+
+    Vpc:
+      type: object
+      required: [id, tenantId, projectId, name, cidrBlock, defaultRouteTableId, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        cidrBlock:
+          type: string
+        defaultRouteTableId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateSubnetRequest:
+      type: object
+      required: [tenantId, projectId, vpcId, name, cidrBlock, availabilityZone]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        cidrBlock:
+          type: string
+        availabilityZone:
+          type: string
+
+    Subnet:
+      type: object
+      required: [id, tenantId, projectId, vpcId, name, cidrBlock, availabilityZone, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        cidrBlock:
+          type: string
+        availabilityZone:
+          type: string
+        routeTableId:
+          type: string
+          format: uuid
+          nullable: true
+        routeTableAssociationId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateRouteTableRequest:
+      type: object
+      required: [tenantId, projectId, vpcId, name]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    CreateRouteRequest:
+      type: object
+      required: [destinationCidr, targetType]
+      properties:
+        destinationCidr:
+          type: string
+        targetType:
+          $ref: '#/components/schemas/NetworkRouteTargetType'
+
+    Route:
+      type: object
+      required: [id, destinationCidr, targetType, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        destinationCidr:
+          type: string
+        targetType:
+          $ref: '#/components/schemas/NetworkRouteTargetType'
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateRouteTableAssociationRequest:
+      type: object
+      required: [subnetId]
+      properties:
+        subnetId:
+          type: string
+          format: uuid
+
+    RouteTableAssociation:
+      type: object
+      required: [id, routeTableId, subnetId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        routeTableId:
+          type: string
+          format: uuid
+        subnetId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    RouteTable:
+      type: object
+      required: [id, tenantId, projectId, vpcId, name, isDefault, routes, associations, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        isDefault:
+          type: boolean
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+        associations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteTableAssociation'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateSecurityGroupRequest:
+      type: object
+      required: [tenantId, projectId, vpcId, name]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    SecurityGroupRuleInput:
+      type: object
+      required: [direction, protocol, cidrBlock]
+      properties:
+        direction:
+          $ref: '#/components/schemas/NetworkRuleDirection'
+        protocol:
+          $ref: '#/components/schemas/NetworkRuleProtocol'
+        portRangeStart:
+          type: integer
+          nullable: true
+        portRangeEnd:
+          type: integer
+          nullable: true
+        cidrBlock:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    ReplaceSecurityGroupRulesRequest:
+      type: object
+      required: [rules]
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRuleInput'
+
+    SecurityGroupRule:
+      type: object
+      required: [id, direction, protocol, cidrBlock, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        direction:
+          $ref: '#/components/schemas/NetworkRuleDirection'
+        protocol:
+          $ref: '#/components/schemas/NetworkRuleProtocol'
+        portRangeStart:
+          type: integer
+          nullable: true
+        portRangeEnd:
+          type: integer
+          nullable: true
+        cidrBlock:
+          type: string
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    SecurityGroup:
+      type: object
+      required: [id, tenantId, projectId, vpcId, name, rules, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/SecurityGroupRule'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     CreateProjectRequest:
       type: object

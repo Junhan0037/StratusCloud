@@ -5,6 +5,10 @@ import { AutoscalingGroupPanel } from "@/features/compute/autoscaling/Autoscalin
 import { HealthcheckPanel } from "@/features/compute/health/HealthcheckPanel";
 import { ImageCatalogPanel } from "@/features/compute/images/ImageCatalogPanel";
 import { InstancePanel } from "@/features/compute/instances/InstancePanel";
+import { RouteTablePanel } from "@/features/network/routes/RouteTablePanel";
+import { SecurityGroupPanel } from "@/features/network/security/SecurityGroupPanel";
+import { SubnetPanel } from "@/features/network/subnets/SubnetPanel";
+import { VpcPanel } from "@/features/network/vpcs/VpcPanel";
 import { ApiKeyPanel } from "@/features/iam/apikeys/ApiKeyPanel";
 import { AuditPanel } from "@/features/iam/audit/AuditPanel";
 import { AuthSessionPanel } from "@/features/iam/auth/AuthSessionPanel";
@@ -21,9 +25,9 @@ export default function ConsoleProjectsPage() {
   return (
     <main style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 20px" }}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>Week 6 Compute Console</h1>
+        <h1 style={{ margin: 0 }}>Week 7 Network Console</h1>
         <p style={{ marginTop: 10, color: "#5d6b7d" }}>
-          JWT/API Key 인증, IAM, Secrets, Audit, Compute Image/Instance, Autoscaling/Healthcheck 흐름까지 빠르게 검증할 수 있는 운영 화면입니다.
+          JWT/API Key 인증, IAM, Audit, Compute, Network-1(VPC/Subnet/SG/Route) 흐름까지 빠르게 검증할 수 있는 운영 화면입니다.
         </p>
       </header>
 
@@ -39,6 +43,10 @@ export default function ConsoleProjectsPage() {
         <ApiKeyPanel />
         <SecretPanel />
         <AuditPanel />
+        <VpcPanel selectedProject={selectedProject} />
+        <SubnetPanel selectedProject={selectedProject} />
+        <RouteTablePanel selectedProject={selectedProject} />
+        <SecurityGroupPanel selectedProject={selectedProject} />
         <ImageCatalogPanel />
         <AutoscalingGroupPanel selectedProject={selectedProject} />
         <InstancePanel selectedProject={selectedProject} />

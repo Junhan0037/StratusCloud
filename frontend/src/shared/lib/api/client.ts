@@ -8,6 +8,9 @@ export type ComputeOsType = "LINUX" | "WINDOWS";
 export type ComputeHealthStatus = "UNKNOWN" | "HEALTHY" | "UNHEALTHY";
 export type ComputeHealthPolicy = "RESTART";
 export type ComputeAutoscalingGroupStatus = "ACTIVE";
+export type NetworkRouteTargetType = "LOCAL" | "INTERNET_GATEWAY";
+export type NetworkRuleDirection = "INGRESS" | "EGRESS";
+export type NetworkRuleProtocol = "TCP" | "UDP" | "ICMP" | "ALL";
 
 export interface ProjectResponse {
   id: string;
@@ -176,6 +179,81 @@ export interface ComputeHealthReconcileResponse {
   replacementInstanceIds: string[];
 }
 
+export interface VpcResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  cidrBlock: string;
+  defaultRouteTableId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubnetResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  vpcId: string;
+  name: string;
+  cidrBlock: string;
+  availabilityZone: string;
+  routeTableId: string | null;
+  routeTableAssociationId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RouteResponse {
+  id: string;
+  destinationCidr: string;
+  targetType: NetworkRouteTargetType;
+  createdAt: string;
+}
+
+export interface RouteTableAssociationResponse {
+  id: string;
+  routeTableId: string;
+  subnetId: string;
+  createdAt: string;
+}
+
+export interface RouteTableResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  vpcId: string;
+  name: string;
+  isDefault: boolean;
+  routes: RouteResponse[];
+  associations: RouteTableAssociationResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SecurityGroupRuleResponse {
+  id: string;
+  direction: NetworkRuleDirection;
+  protocol: NetworkRuleProtocol;
+  portRangeStart: number | null;
+  portRangeEnd: number | null;
+  cidrBlock: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface SecurityGroupResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  vpcId: string;
+  name: string;
+  description: string | null;
+  rules: SecurityGroupRuleResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AuthSession {
   bearerToken: string;
   apiKey: string;
@@ -234,6 +312,10 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 
     const payload = (await response.json().catch(() => fallback)) as ApiErrorResponse;
     throw new Error(`[${payload.code}] ${payload.message} (traceId=${payload.traceId})`);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return (await response.json()) as T;
@@ -637,5 +719,168 @@ export async function writeComputeInstanceHealth(
       status,
       detail: detail?.trim() ? detail : null
     })
+  });
+}
+
+export async function createVpc(
+  tenantId: string,
+  projectId: string,
+  name: string,
+  cidrBlock: string
+): Promise<VpcResponse> {
+  return request<VpcResponse>("/v1/network/vpcs", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, name, cidrBlock })
+  });
+}
+
+export async function listVpcs(tenantId: string, projectId: string): Promise<VpcResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<VpcResponse[]>(`/v1/network/vpcs?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function deleteVpc(vpcId: string): Promise<void> {
+  return request<void>(`/v1/network/vpcs/${vpcId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createSubnet(
+  tenantId: string,
+  projectId: string,
+  vpcId: string,
+  name: string,
+  cidrBlock: string,
+  availabilityZone: string
+): Promise<SubnetResponse> {
+  return request<SubnetResponse>("/v1/network/subnets", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, vpcId, name, cidrBlock, availabilityZone })
+  });
+}
+
+export async function listSubnets(tenantId: string, projectId: string, vpcId?: string): Promise<SubnetResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  if (vpcId?.trim()) {
+    params.set("vpcId", vpcId.trim());
+  }
+  return request<SubnetResponse[]>(`/v1/network/subnets?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function deleteSubnet(subnetId: string): Promise<void> {
+  return request<void>(`/v1/network/subnets/${subnetId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createRouteTable(
+  tenantId: string,
+  projectId: string,
+  vpcId: string,
+  name: string
+): Promise<RouteTableResponse> {
+  return request<RouteTableResponse>("/v1/network/route-tables", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, vpcId, name })
+  });
+}
+
+export async function listRouteTables(vpcId: string): Promise<RouteTableResponse[]> {
+  const params = new URLSearchParams({ vpcId });
+  return request<RouteTableResponse[]>(`/v1/network/route-tables?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function createRoute(
+  routeTableId: string,
+  destinationCidr: string,
+  targetType: NetworkRouteTargetType
+): Promise<RouteResponse> {
+  return request<RouteResponse>(`/v1/network/route-tables/${routeTableId}/routes`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ destinationCidr, targetType })
+  });
+}
+
+export async function deleteRoute(routeId: string): Promise<void> {
+  return request<void>(`/v1/network/routes/${routeId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function associateSubnet(routeTableId: string, subnetId: string): Promise<RouteTableAssociationResponse> {
+  return request<RouteTableAssociationResponse>(`/v1/network/route-tables/${routeTableId}/associations`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ subnetId })
+  });
+}
+
+export async function deleteRouteTable(routeTableId: string): Promise<void> {
+  return request<void>(`/v1/network/route-tables/${routeTableId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createSecurityGroup(
+  tenantId: string,
+  projectId: string,
+  vpcId: string,
+  name: string,
+  description: string
+): Promise<SecurityGroupResponse> {
+  return request<SecurityGroupResponse>("/v1/network/security-groups", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, vpcId, name, description })
+  });
+}
+
+export async function listSecurityGroups(tenantId: string, projectId: string): Promise<SecurityGroupResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<SecurityGroupResponse[]>(`/v1/network/security-groups?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function replaceSecurityGroupRules(
+  securityGroupId: string,
+  rules: Array<{
+    direction: NetworkRuleDirection;
+    protocol: NetworkRuleProtocol;
+    portRangeStart: number | null;
+    portRangeEnd: number | null;
+    cidrBlock: string;
+    description: string | null;
+  }>
+): Promise<SecurityGroupResponse> {
+  return request<SecurityGroupResponse>(`/v1/network/security-groups/${securityGroupId}/rules`, {
+    method: "PUT",
+    headers: buildHeaders(),
+    body: JSON.stringify({ rules })
+  });
+}
+
+export async function deleteSecurityGroup(securityGroupId: string): Promise<void> {
+  return request<void>(`/v1/network/security-groups/${securityGroupId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
   });
 }
