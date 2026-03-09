@@ -346,6 +346,268 @@ class NetworkApiIntegrationTest {
         assertThat(deniedLogs).isNotEmpty
     }
 
+    @Test
+    fun `load balancer listener rule dns eip 흐름을 생성하고 조회할 수 있어야 한다`() {
+        val fixture = createFixture("network-lb")
+        val vpcId = createVpc(fixture, "public-vpc", "10.40.0.0/16").get("id").asText()
+        val publicSubnetId = createSubnet(fixture, vpcId, "public-a", "10.40.1.0/24").get("id").asText()
+        val appSubnetId = createSubnet(fixture, vpcId, "app-a", "10.40.2.0/24").get("id").asText()
+
+        val loadBalancerBody = mockMvc.post("/v1/network/load-balancers") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "projectId" to fixture.project.id,
+                    "vpcId" to vpcId,
+                    "name" to "edge-http",
+                    "type" to "L7",
+                    "scheme" to "INTERNET_FACING"
+                )
+            )
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.name") { value("edge-http") }
+            jsonPath("$.listeners.length()") { value(0) }
+        }.andReturn().response.contentAsString
+
+        val loadBalancerId = objectMapper.readTree(loadBalancerBody).get("id").asText()
+
+        val listenerBody = mockMvc.post("/v1/network/load-balancers/$loadBalancerId/listeners") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "protocol" to "HTTP",
+                    "port" to 80,
+                    "defaultTargetSubnetId" to publicSubnetId
+                )
+            )
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.protocol") { value("HTTP") }
+            jsonPath("$.defaultTargetSubnetId") { value(publicSubnetId) }
+        }.andReturn().response.contentAsString
+
+        val listenerId = objectMapper.readTree(listenerBody).get("id").asText()
+
+        mockMvc.post("/v1/network/listeners/$listenerId/rules") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "priority" to 10,
+                    "pathPattern" to "/api/*",
+                    "targetSubnetId" to appSubnetId
+                )
+            )
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.pathPattern") { value("/api/*") }
+            jsonPath("$.targetSubnetId") { value(appSubnetId) }
+        }
+
+        val elasticIpBody = mockMvc.post("/v1/network/elastic-ips") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "projectId" to fixture.project.id,
+                    "name" to "edge-eip"
+                )
+            )
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.name") { value("edge-eip") }
+            jsonPath("$.allocationStatus") { value("UNASSIGNED") }
+        }.andReturn().response.contentAsString
+
+        val elasticIpId = objectMapper.readTree(elasticIpBody).get("id").asText()
+
+        mockMvc.post("/v1/network/elastic-ips/$elasticIpId/attachments") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "targetType" to "LOAD_BALANCER",
+                    "targetId" to loadBalancerId
+                )
+            )
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.allocationStatus") { value("ASSIGNED") }
+            jsonPath("$.attachment.targetType") { value("LOAD_BALANCER") }
+            jsonPath("$.attachment.targetId") { value(loadBalancerId) }
+        }
+
+        mockMvc.post("/v1/network/dns-records") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "projectId" to fixture.project.id,
+                    "name" to "api.internal",
+                    "targetType" to "LOAD_BALANCER",
+                    "targetId" to loadBalancerId
+                )
+            )
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.recordType") { value("A") }
+            jsonPath("$.targetType") { value("LOAD_BALANCER") }
+        }
+
+        mockMvc.get("/v1/network/load-balancers/$loadBalancerId") {
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.listeners.length()") { value(1) }
+            jsonPath("$.listeners[0].rules.length()") { value(1) }
+            jsonPath("$.listeners[0].rules[0].pathPattern") { value("/api/*") }
+        }
+    }
+
+    @Test
+    fun `nat gateway eip route를 연결하면 참조 중 삭제가 거부되어야 한다`() {
+        val fixture = createFixture("network-nat")
+        val vpcId = createVpc(fixture, "nat-vpc", "10.50.0.0/16").get("id").asText()
+        val publicSubnetId = createSubnet(fixture, vpcId, "public-a", "10.50.1.0/24").get("id").asText()
+        val routeTableId = createRouteTable(fixture, vpcId, "private-rt").get("id").asText()
+
+        val natBody = mockMvc.post("/v1/network/nat-gateways") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "projectId" to fixture.project.id,
+                    "vpcId" to vpcId,
+                    "subnetId" to publicSubnetId,
+                    "name" to "nat-a"
+                )
+            )
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.name") { value("nat-a") }
+            jsonPath("$.subnetId") { value(publicSubnetId) }
+        }.andReturn().response.contentAsString
+
+        val natGatewayId = objectMapper.readTree(natBody).get("id").asText()
+        val elasticIpId = objectMapper.readTree(
+            mockMvc.post("/v1/network/elastic-ips") {
+                contentType = MediaType.APPLICATION_JSON
+                header("X-Project-Role", "ADMIN")
+                header("X-Tenant-Id", fixture.tenant.id.toString())
+                header("X-Project-Id", fixture.project.id.toString())
+                content = objectMapper.writeValueAsString(
+                    mapOf(
+                        "tenantId" to fixture.tenant.id,
+                        "projectId" to fixture.project.id,
+                        "name" to "nat-eip"
+                    )
+                )
+            }.andExpect {
+                status { isCreated() }
+            }.andReturn().response.contentAsString
+        ).get("id").asText()
+
+        mockMvc.post("/v1/network/elastic-ips/$elasticIpId/attachments") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "targetType" to "NAT_GATEWAY",
+                    "targetId" to natGatewayId
+                )
+            )
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.attachment.targetType") { value("NAT_GATEWAY") }
+        }
+
+        mockMvc.post("/v1/network/route-tables/$routeTableId/routes") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "destinationCidr" to "0.0.0.0/0",
+                    "targetType" to "NAT_GATEWAY",
+                    "targetResourceId" to natGatewayId
+                )
+            )
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.targetType") { value("NAT_GATEWAY") }
+            jsonPath("$.targetResourceId") { value(natGatewayId) }
+        }
+
+        mockMvc.delete("/v1/network/nat-gateways/$natGatewayId") {
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+        }.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.code") { value("BAD_REQUEST") }
+        }
+    }
+
+    @Test
+    fun `viewer는 elastic ip를 생성할 수 없고 denied audit log가 남아야 한다`() {
+        val fixture = createFixture("network-eip-denied")
+
+        mockMvc.post("/v1/network/elastic-ips") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "VIEWER")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "projectId" to fixture.project.id,
+                    "name" to "blocked-eip"
+                )
+            )
+        }.andExpect {
+            status { isForbidden() }
+            jsonPath("$.code") { value("FORBIDDEN") }
+        }
+
+        val deniedLogs = auditEventRepository.search(
+            tenantId = fixture.tenant.id,
+            projectId = fixture.project.id,
+            actorId = null,
+            resourceType = "ELASTIC_IP",
+            action = "network:elastic-ip:create",
+            result = AuditResult.DENIED,
+            occurredFrom = null,
+            occurredTo = null
+        )
+        assertThat(deniedLogs).isNotEmpty
+    }
+
     private fun createVpc(fixture: Fixture, name: String, cidrBlock: String) =
         objectMapper.readTree(
             mockMvc.post("/v1/network/vpcs") {
@@ -359,6 +621,48 @@ class NetworkApiIntegrationTest {
                         "projectId" to fixture.project.id,
                         "name" to name,
                         "cidrBlock" to cidrBlock
+                    )
+                )
+            }.andExpect {
+                status { isCreated() }
+            }.andReturn().response.contentAsString
+        )
+
+    private fun createSubnet(fixture: Fixture, vpcId: String, name: String, cidrBlock: String) =
+        objectMapper.readTree(
+            mockMvc.post("/v1/network/subnets") {
+                contentType = MediaType.APPLICATION_JSON
+                header("X-Project-Role", "ADMIN")
+                header("X-Tenant-Id", fixture.tenant.id.toString())
+                header("X-Project-Id", fixture.project.id.toString())
+                content = objectMapper.writeValueAsString(
+                    mapOf(
+                        "tenantId" to fixture.tenant.id,
+                        "projectId" to fixture.project.id,
+                        "vpcId" to vpcId,
+                        "name" to name,
+                        "cidrBlock" to cidrBlock,
+                        "availabilityZone" to "ap-northeast-2a"
+                    )
+                )
+            }.andExpect {
+                status { isCreated() }
+            }.andReturn().response.contentAsString
+        )
+
+    private fun createRouteTable(fixture: Fixture, vpcId: String, name: String) =
+        objectMapper.readTree(
+            mockMvc.post("/v1/network/route-tables") {
+                contentType = MediaType.APPLICATION_JSON
+                header("X-Project-Role", "ADMIN")
+                header("X-Tenant-Id", fixture.tenant.id.toString())
+                header("X-Project-Id", fixture.project.id.toString())
+                content = objectMapper.writeValueAsString(
+                    mapOf(
+                        "tenantId" to fixture.tenant.id,
+                        "projectId" to fixture.project.id,
+                        "vpcId" to vpcId,
+                        "name" to name
                     )
                 )
             }.andExpect {

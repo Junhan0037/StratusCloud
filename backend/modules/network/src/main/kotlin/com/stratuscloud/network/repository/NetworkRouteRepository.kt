@@ -7,5 +7,6 @@ import java.util.UUID
 interface NetworkRouteRepository : JpaRepository<NetworkRouteEntity, UUID> {
     fun existsByRouteTableIdAndDestinationCidr(routeTableId: UUID, destinationCidr: String): Boolean
     fun findAllByRouteTableIdOrderByCreatedAtAsc(routeTableId: UUID): List<NetworkRouteEntity>
+    fun existsByTargetTypeAndTargetResourceId(targetType: com.stratuscloud.network.domain.NetworkRouteTargetType, targetResourceId: UUID): Boolean
     fun deleteAllByRouteTableId(routeTableId: UUID)
 }

@@ -12,8 +12,8 @@ import jakarta.persistence.Table
 import java.util.UUID
 
 @Entity
-@Table(name = "network_routes")
-class NetworkRouteEntity(
+@Table(name = "network_elastic_ips")
+class NetworkElasticIpEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
@@ -21,16 +21,17 @@ class NetworkRouteEntity(
     val tenantId: UUID = UUID.randomUUID(),
     @Column(name = "project_id", nullable = false)
     val projectId: UUID = UUID.randomUUID(),
-    @Column(name = "vpc_id", nullable = false)
-    val vpcId: UUID = UUID.randomUUID(),
-    @Column(name = "route_table_id", nullable = false)
-    val routeTableId: UUID = UUID.randomUUID(),
-    @Column(name = "destination_cidr", nullable = false, length = 32)
-    var destinationCidr: String = "",
+    @Column(nullable = false, length = 100)
+    val name: String = "",
+    @Column(name = "public_ip", nullable = false, length = 30)
+    val publicIp: String = "",
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", nullable = false, length = 30)
-    var targetType: NetworkRouteTargetType = NetworkRouteTargetType.LOCAL,
-    @Column(name = "target_resource_id")
-    var targetResourceId: UUID? = null,
+    @Column(name = "allocation_status", nullable = false, length = 20)
+    var allocationStatus: NetworkElasticIpAllocationStatus = NetworkElasticIpAllocationStatus.UNASSIGNED,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attachment_target_type", length = 30)
+    var attachmentTargetType: NetworkElasticIpAttachmentType? = null,
+    @Column(name = "attachment_target_id")
+    var attachmentTargetId: UUID? = null,
     createdBy: String = "system"
 ) : BaseAuditableEntity(createdBy = createdBy)

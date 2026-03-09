@@ -13,6 +13,7 @@ import com.stratuscloud.network.domain.NetworkSecurityGroupEntity
 import com.stratuscloud.network.domain.NetworkSecurityGroupRuleEntity
 import com.stratuscloud.network.domain.NetworkSubnetEntity
 import com.stratuscloud.network.domain.NetworkVpcEntity
+import com.stratuscloud.network.repository.NetworkNatGatewayRepository
 import com.stratuscloud.network.repository.NetworkRouteRepository
 import com.stratuscloud.network.repository.NetworkRouteTableAssociationRepository
 import com.stratuscloud.network.repository.NetworkRouteTableRepository
@@ -33,7 +34,8 @@ class NetworkService(
     private val routeRepository: NetworkRouteRepository,
     private val routeTableAssociationRepository: NetworkRouteTableAssociationRepository,
     private val securityGroupRepository: NetworkSecurityGroupRepository,
-    private val securityGroupRuleRepository: NetworkSecurityGroupRuleRepository
+    private val securityGroupRuleRepository: NetworkSecurityGroupRuleRepository,
+    private val natGatewayRepository: NetworkNatGatewayRepository
 ) {
 
     @Transactional
@@ -256,12 +258,29 @@ class NetworkService(
         routeTableId: UUID,
         destinationCidr: String,
         targetType: NetworkRouteTargetType,
+        targetResourceId: UUID?,
         actorId: UUID
     ): NetworkRouteEntity {
         val routeTable = getRouteTable(routeTableId)
         val normalizedCidr = NetworkCidr.parse(destinationCidr).original
         if (routeRepository.existsByRouteTableIdAndDestinationCidr(routeTableId, normalizedCidr)) {
             throw DuplicateResourceException("route already exists for destination: $normalizedCidr")
+        }
+        val normalizedTargetResourceId = when (targetType) {
+            NetworkRouteTargetType.NAT_GATEWAY -> {
+                val natGatewayId = targetResourceId ?: throw BadRequestException("target resource id is required for nat gateway route")
+                val natGateway = natGatewayRepository.findById(natGatewayId)
+                    .orElseThrow { ResourceNotFoundException("nat gateway not found: $natGatewayId") }
+                requireScope(natGateway.vpcId == routeTable.vpcId, "nat gateway must belong to same vpc as route table")
+                natGatewayId
+            }
+
+            else -> {
+                if (targetResourceId != null) {
+                    throw BadRequestException("target resource id is not allowed for route type $targetType")
+                }
+                null
+            }
         }
         return routeRepository.save(
             NetworkRouteEntity(
@@ -271,6 +290,7 @@ class NetworkService(
                 routeTableId = routeTableId,
                 destinationCidr = normalizedCidr,
                 targetType = targetType,
+                targetResourceId = normalizedTargetResourceId,
                 createdBy = actorId.toString()
             )
         )

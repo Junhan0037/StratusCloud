@@ -8,9 +8,16 @@ export type ComputeOsType = "LINUX" | "WINDOWS";
 export type ComputeHealthStatus = "UNKNOWN" | "HEALTHY" | "UNHEALTHY";
 export type ComputeHealthPolicy = "RESTART";
 export type ComputeAutoscalingGroupStatus = "ACTIVE";
-export type NetworkRouteTargetType = "LOCAL" | "INTERNET_GATEWAY";
+export type NetworkRouteTargetType = "LOCAL" | "INTERNET_GATEWAY" | "NAT_GATEWAY";
 export type NetworkRuleDirection = "INGRESS" | "EGRESS";
 export type NetworkRuleProtocol = "TCP" | "UDP" | "ICMP" | "ALL";
+export type NetworkLoadBalancerType = "L4" | "L7";
+export type NetworkLoadBalancerScheme = "INTERNAL" | "INTERNET_FACING";
+export type NetworkLoadBalancerProtocol = "TCP" | "HTTP";
+export type NetworkElasticIpAllocationStatus = "UNASSIGNED" | "ASSIGNED";
+export type NetworkElasticIpAttachmentType = "LOAD_BALANCER" | "NAT_GATEWAY";
+export type NetworkDnsRecordType = "A";
+export type NetworkDnsTargetType = "LOAD_BALANCER" | "ELASTIC_IP";
 
 export interface ProjectResponse {
   id: string;
@@ -208,6 +215,7 @@ export interface RouteResponse {
   id: string;
   destinationCidr: string;
   targetType: NetworkRouteTargetType;
+  targetResourceId: string | null;
   createdAt: string;
 }
 
@@ -250,6 +258,76 @@ export interface SecurityGroupResponse {
   name: string;
   description: string | null;
   rules: SecurityGroupRuleResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoadBalancerRuleResponse {
+  id: string;
+  priority: number;
+  pathPattern: string;
+  targetSubnetId: string;
+  createdAt: string;
+}
+
+export interface LoadBalancerListenerResponse {
+  id: string;
+  protocol: NetworkLoadBalancerProtocol;
+  port: number;
+  defaultTargetSubnetId: string;
+  rules: LoadBalancerRuleResponse[];
+  createdAt: string;
+}
+
+export interface LoadBalancerResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  vpcId: string;
+  name: string;
+  type: NetworkLoadBalancerType;
+  scheme: NetworkLoadBalancerScheme;
+  listeners: LoadBalancerListenerResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ElasticIpAttachmentResponse {
+  targetType: NetworkElasticIpAttachmentType;
+  targetId: string;
+}
+
+export interface ElasticIpResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  publicIp: string;
+  allocationStatus: NetworkElasticIpAllocationStatus;
+  attachment: ElasticIpAttachmentResponse | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NatGatewayResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  vpcId: string;
+  subnetId: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DnsRecordResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  recordType: NetworkDnsRecordType;
+  targetType: NetworkDnsTargetType;
+  targetId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -807,12 +885,17 @@ export async function listRouteTables(vpcId: string): Promise<RouteTableResponse
 export async function createRoute(
   routeTableId: string,
   destinationCidr: string,
-  targetType: NetworkRouteTargetType
+  targetType: NetworkRouteTargetType,
+  targetResourceId?: string
 ): Promise<RouteResponse> {
   return request<RouteResponse>(`/v1/network/route-tables/${routeTableId}/routes`, {
     method: "POST",
     headers: buildHeaders(),
-    body: JSON.stringify({ destinationCidr, targetType })
+    body: JSON.stringify({
+      destinationCidr,
+      targetType,
+      targetResourceId: targetResourceId?.trim() ? targetResourceId.trim() : null
+    })
   });
 }
 
@@ -880,6 +963,162 @@ export async function replaceSecurityGroupRules(
 
 export async function deleteSecurityGroup(securityGroupId: string): Promise<void> {
   return request<void>(`/v1/network/security-groups/${securityGroupId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createLoadBalancer(
+  tenantId: string,
+  projectId: string,
+  vpcId: string,
+  name: string,
+  type: NetworkLoadBalancerType,
+  scheme: NetworkLoadBalancerScheme
+): Promise<LoadBalancerResponse> {
+  return request<LoadBalancerResponse>("/v1/network/load-balancers", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, vpcId, name, type, scheme })
+  });
+}
+
+export async function listLoadBalancers(tenantId: string, projectId: string): Promise<LoadBalancerResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<LoadBalancerResponse[]>(`/v1/network/load-balancers?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function createLoadBalancerListener(
+  loadBalancerId: string,
+  protocol: NetworkLoadBalancerProtocol,
+  port: number,
+  defaultTargetSubnetId: string
+): Promise<LoadBalancerListenerResponse> {
+  return request<LoadBalancerListenerResponse>(`/v1/network/load-balancers/${loadBalancerId}/listeners`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ protocol, port, defaultTargetSubnetId })
+  });
+}
+
+export async function createLoadBalancerRule(
+  listenerId: string,
+  priority: number,
+  pathPattern: string,
+  targetSubnetId: string
+): Promise<LoadBalancerRuleResponse> {
+  return request<LoadBalancerRuleResponse>(`/v1/network/listeners/${listenerId}/rules`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ priority, pathPattern, targetSubnetId })
+  });
+}
+
+export async function deleteLoadBalancer(loadBalancerId: string): Promise<void> {
+  return request<void>(`/v1/network/load-balancers/${loadBalancerId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createElasticIp(tenantId: string, projectId: string, name: string): Promise<ElasticIpResponse> {
+  return request<ElasticIpResponse>("/v1/network/elastic-ips", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, name })
+  });
+}
+
+export async function listElasticIps(tenantId: string, projectId: string): Promise<ElasticIpResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<ElasticIpResponse[]>(`/v1/network/elastic-ips?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function attachElasticIp(
+  elasticIpId: string,
+  targetType: NetworkElasticIpAttachmentType,
+  targetId: string
+): Promise<ElasticIpResponse> {
+  return request<ElasticIpResponse>(`/v1/network/elastic-ips/${elasticIpId}/attachments`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ targetType, targetId })
+  });
+}
+
+export async function detachElasticIp(elasticIpId: string): Promise<ElasticIpResponse> {
+  return request<ElasticIpResponse>(`/v1/network/elastic-ips/${elasticIpId}/attachments`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function deleteElasticIp(elasticIpId: string): Promise<void> {
+  return request<void>(`/v1/network/elastic-ips/${elasticIpId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createNatGateway(
+  tenantId: string,
+  projectId: string,
+  vpcId: string,
+  subnetId: string,
+  name: string
+): Promise<NatGatewayResponse> {
+  return request<NatGatewayResponse>("/v1/network/nat-gateways", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, vpcId, subnetId, name })
+  });
+}
+
+export async function listNatGateways(tenantId: string, projectId: string): Promise<NatGatewayResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<NatGatewayResponse[]>(`/v1/network/nat-gateways?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function deleteNatGateway(natGatewayId: string): Promise<void> {
+  return request<void>(`/v1/network/nat-gateways/${natGatewayId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function createDnsRecord(
+  tenantId: string,
+  projectId: string,
+  name: string,
+  targetType: NetworkDnsTargetType,
+  targetId: string
+): Promise<DnsRecordResponse> {
+  return request<DnsRecordResponse>("/v1/network/dns-records", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, name, targetType, targetId })
+  });
+}
+
+export async function listDnsRecords(tenantId: string, projectId: string): Promise<DnsRecordResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<DnsRecordResponse[]>(`/v1/network/dns-records?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function deleteDnsRecord(dnsRecordId: string): Promise<void> {
+  return request<void>(`/v1/network/dns-records/${dnsRecordId}`, {
     method: "DELETE",
     headers: buildHeaders()
   });

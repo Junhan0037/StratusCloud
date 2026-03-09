@@ -1211,6 +1211,418 @@ paths:
               schema:
                 $ref: '#/components/schemas/SecurityGroup'
 
+  /v1/network/load-balancers:
+    post:
+      tags: [network]
+      summary: 프로젝트에 Load Balancer를 생성한다.
+      operationId: createLoadBalancer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoadBalancerRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadBalancer'
+    get:
+      tags: [network]
+      summary: 프로젝트의 Load Balancer 목록을 조회한다.
+      operationId: listLoadBalancers
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LoadBalancer'
+
+  /v1/network/load-balancers/{loadBalancerId}:
+    get:
+      tags: [network]
+      summary: Load Balancer 상세를 조회한다.
+      operationId: getLoadBalancer
+      parameters:
+        - name: loadBalancerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadBalancer'
+    delete:
+      tags: [network]
+      summary: 참조 중이 아닌 Load Balancer를 삭제한다.
+      operationId: deleteLoadBalancer
+      parameters:
+        - name: loadBalancerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/load-balancers/{loadBalancerId}/listeners:
+    post:
+      tags: [network]
+      summary: Load Balancer에 Listener를 추가한다.
+      operationId: createLoadBalancerListener
+      parameters:
+        - name: loadBalancerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoadBalancerListenerRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadBalancerListener'
+
+  /v1/network/listeners/{listenerId}/rules:
+    post:
+      tags: [network]
+      summary: HTTP Listener에 path rule을 추가한다.
+      operationId: createLoadBalancerRule
+      parameters:
+        - name: listenerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLoadBalancerRuleRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadBalancerRule'
+
+  /v1/network/elastic-ips:
+    post:
+      tags: [network]
+      summary: 프로젝트에 Elastic IP를 할당한다.
+      operationId: createElasticIp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateElasticIpRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElasticIp'
+    get:
+      tags: [network]
+      summary: 프로젝트의 Elastic IP 목록을 조회한다.
+      operationId: listElasticIps
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ElasticIp'
+
+  /v1/network/elastic-ips/{elasticIpId}:
+    get:
+      tags: [network]
+      summary: Elastic IP 상세를 조회한다.
+      operationId: getElasticIp
+      parameters:
+        - name: elasticIpId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElasticIp'
+    delete:
+      tags: [network]
+      summary: 연결되지 않은 Elastic IP를 삭제한다.
+      operationId: deleteElasticIp
+      parameters:
+        - name: elasticIpId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/elastic-ips/{elasticIpId}/attachments:
+    post:
+      tags: [network]
+      summary: Elastic IP를 Load Balancer 또는 NAT Gateway에 연결한다.
+      operationId: attachElasticIp
+      parameters:
+        - name: elasticIpId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttachElasticIpRequest'
+      responses:
+        '200':
+          description: 연결 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElasticIp'
+    delete:
+      tags: [network]
+      summary: Elastic IP 연결을 해제한다.
+      operationId: detachElasticIp
+      parameters:
+        - name: elasticIpId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 해제 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElasticIp'
+
+  /v1/network/nat-gateways:
+    post:
+      tags: [network]
+      summary: Subnet에 NAT Gateway를 생성한다.
+      operationId: createNatGateway
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNatGatewayRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NatGateway'
+    get:
+      tags: [network]
+      summary: 프로젝트의 NAT Gateway 목록을 조회한다.
+      operationId: listNatGateways
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NatGateway'
+
+  /v1/network/nat-gateways/{natGatewayId}:
+    get:
+      tags: [network]
+      summary: NAT Gateway 상세를 조회한다.
+      operationId: getNatGateway
+      parameters:
+        - name: natGatewayId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NatGateway'
+    delete:
+      tags: [network]
+      summary: 참조 중이 아닌 NAT Gateway를 삭제한다.
+      operationId: deleteNatGateway
+      parameters:
+        - name: natGatewayId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/network/dns-records:
+    post:
+      tags: [network]
+      summary: DNS 레코드를 생성한다.
+      operationId: createDnsRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDnsRecordRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DnsRecord'
+    get:
+      tags: [network]
+      summary: 프로젝트의 DNS 레코드 목록을 조회한다.
+      operationId: listDnsRecords
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DnsRecord'
+
+  /v1/network/dns-records/{dnsRecordId}:
+    get:
+      tags: [network]
+      summary: DNS 레코드 상세를 조회한다.
+      operationId: getDnsRecord
+      parameters:
+        - name: dnsRecordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DnsRecord'
+    delete:
+      tags: [network]
+      summary: DNS 레코드를 삭제한다.
+      operationId: deleteDnsRecord
+      parameters:
+        - name: dnsRecordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
   /v1/audit/logs:
     get:
       tags: [audit]
@@ -1328,7 +1740,35 @@ components:
 
     NetworkRouteTargetType:
       type: string
-      enum: [LOCAL, INTERNET_GATEWAY]
+      enum: [LOCAL, INTERNET_GATEWAY, NAT_GATEWAY]
+
+    NetworkLoadBalancerType:
+      type: string
+      enum: [L4, L7]
+
+    NetworkLoadBalancerScheme:
+      type: string
+      enum: [INTERNAL, INTERNET_FACING]
+
+    NetworkLoadBalancerProtocol:
+      type: string
+      enum: [TCP, HTTP]
+
+    NetworkElasticIpAllocationStatus:
+      type: string
+      enum: [UNASSIGNED, ASSIGNED]
+
+    NetworkElasticIpAttachmentType:
+      type: string
+      enum: [LOAD_BALANCER, NAT_GATEWAY]
+
+    NetworkDnsRecordType:
+      type: string
+      enum: [A]
+
+    NetworkDnsTargetType:
+      type: string
+      enum: [LOAD_BALANCER, ELASTIC_IP]
 
     NetworkRuleDirection:
       type: string
@@ -1463,6 +1903,10 @@ components:
           type: string
         targetType:
           $ref: '#/components/schemas/NetworkRouteTargetType'
+        targetResourceId:
+          type: string
+          format: uuid
+          nullable: true
 
     Route:
       type: object
@@ -1475,6 +1919,10 @@ components:
           type: string
         targetType:
           $ref: '#/components/schemas/NetworkRouteTargetType'
+        targetResourceId:
+          type: string
+          format: uuid
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -1638,6 +2086,279 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SecurityGroupRule'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateLoadBalancerRequest:
+      type: object
+      required: [tenantId, projectId, vpcId, name, type, scheme]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/NetworkLoadBalancerType'
+        scheme:
+          $ref: '#/components/schemas/NetworkLoadBalancerScheme'
+
+    CreateLoadBalancerListenerRequest:
+      type: object
+      required: [protocol, port, defaultTargetSubnetId]
+      properties:
+        protocol:
+          $ref: '#/components/schemas/NetworkLoadBalancerProtocol'
+        port:
+          type: integer
+        defaultTargetSubnetId:
+          type: string
+          format: uuid
+
+    CreateLoadBalancerRuleRequest:
+      type: object
+      required: [priority, pathPattern, targetSubnetId]
+      properties:
+        priority:
+          type: integer
+        pathPattern:
+          type: string
+        targetSubnetId:
+          type: string
+          format: uuid
+
+    LoadBalancerRule:
+      type: object
+      required: [id, priority, pathPattern, targetSubnetId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        priority:
+          type: integer
+        pathPattern:
+          type: string
+        targetSubnetId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    LoadBalancerListener:
+      type: object
+      required: [id, protocol, port, defaultTargetSubnetId, rules, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        protocol:
+          $ref: '#/components/schemas/NetworkLoadBalancerProtocol'
+        port:
+          type: integer
+        defaultTargetSubnetId:
+          type: string
+          format: uuid
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoadBalancerRule'
+        createdAt:
+          type: string
+          format: date-time
+
+    LoadBalancer:
+      type: object
+      required: [id, tenantId, projectId, vpcId, name, type, scheme, listeners, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/NetworkLoadBalancerType'
+        scheme:
+          $ref: '#/components/schemas/NetworkLoadBalancerScheme'
+        listeners:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoadBalancerListener'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateElasticIpRequest:
+      type: object
+      required: [tenantId, projectId, name]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    AttachElasticIpRequest:
+      type: object
+      required: [targetType, targetId]
+      properties:
+        targetType:
+          $ref: '#/components/schemas/NetworkElasticIpAttachmentType'
+        targetId:
+          type: string
+          format: uuid
+
+    ElasticIpAttachment:
+      type: object
+      required: [targetType, targetId]
+      properties:
+        targetType:
+          $ref: '#/components/schemas/NetworkElasticIpAttachmentType'
+        targetId:
+          type: string
+          format: uuid
+
+    ElasticIp:
+      type: object
+      required: [id, tenantId, projectId, name, publicIp, allocationStatus, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        publicIp:
+          type: string
+        allocationStatus:
+          $ref: '#/components/schemas/NetworkElasticIpAllocationStatus'
+        attachment:
+          $ref: '#/components/schemas/ElasticIpAttachment'
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateNatGatewayRequest:
+      type: object
+      required: [tenantId, projectId, vpcId, subnetId, name]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        subnetId:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    NatGateway:
+      type: object
+      required: [id, tenantId, projectId, vpcId, subnetId, name, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        vpcId:
+          type: string
+          format: uuid
+        subnetId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateDnsRecordRequest:
+      type: object
+      required: [tenantId, projectId, name, targetType, targetId]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        targetType:
+          $ref: '#/components/schemas/NetworkDnsTargetType'
+        targetId:
+          type: string
+          format: uuid
+
+    DnsRecord:
+      type: object
+      required: [id, tenantId, projectId, name, recordType, targetType, targetId, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        recordType:
+          $ref: '#/components/schemas/NetworkDnsRecordType'
+        targetType:
+          $ref: '#/components/schemas/NetworkDnsTargetType'
+        targetId:
+          type: string
+          format: uuid
         createdAt:
           type: string
           format: date-time

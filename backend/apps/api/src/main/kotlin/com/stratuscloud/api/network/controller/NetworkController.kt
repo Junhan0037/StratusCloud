@@ -342,6 +342,7 @@ class NetworkController(
             routeTableId = routeTableId,
             destinationCidr = request.destinationCidr,
             targetType = request.targetType,
+            targetResourceId = request.targetResourceId,
             actorId = principal.actorId
         )
         apiAuditRecorder.recordSuccess(

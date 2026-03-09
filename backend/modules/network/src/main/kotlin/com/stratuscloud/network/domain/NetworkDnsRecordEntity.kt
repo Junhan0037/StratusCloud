@@ -12,8 +12,8 @@ import jakarta.persistence.Table
 import java.util.UUID
 
 @Entity
-@Table(name = "network_routes")
-class NetworkRouteEntity(
+@Table(name = "network_dns_records")
+class NetworkDnsRecordEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
@@ -21,16 +21,15 @@ class NetworkRouteEntity(
     val tenantId: UUID = UUID.randomUUID(),
     @Column(name = "project_id", nullable = false)
     val projectId: UUID = UUID.randomUUID(),
-    @Column(name = "vpc_id", nullable = false)
-    val vpcId: UUID = UUID.randomUUID(),
-    @Column(name = "route_table_id", nullable = false)
-    val routeTableId: UUID = UUID.randomUUID(),
-    @Column(name = "destination_cidr", nullable = false, length = 32)
-    var destinationCidr: String = "",
+    @Column(nullable = false, length = 200)
+    val name: String = "",
+    @Enumerated(EnumType.STRING)
+    @Column(name = "record_type", nullable = false, length = 10)
+    val recordType: NetworkDnsRecordType = NetworkDnsRecordType.A,
     @Enumerated(EnumType.STRING)
     @Column(name = "target_type", nullable = false, length = 30)
-    var targetType: NetworkRouteTargetType = NetworkRouteTargetType.LOCAL,
-    @Column(name = "target_resource_id")
-    var targetResourceId: UUID? = null,
+    val targetType: NetworkDnsTargetType = NetworkDnsTargetType.LOAD_BALANCER,
+    @Column(name = "target_id", nullable = false)
+    val targetId: UUID = UUID.randomUUID(),
     createdBy: String = "system"
 ) : BaseAuditableEntity(createdBy = createdBy)

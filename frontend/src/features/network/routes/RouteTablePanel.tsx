@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import {
+  NatGatewayResponse,
   NetworkRouteTargetType,
   ProjectResponse,
   RouteTableResponse,
@@ -13,6 +14,7 @@ import {
   deleteRoute,
   deleteRouteTable,
   getAuthSession,
+  listNatGateways,
   listRouteTables,
   listSubnets,
   listVpcs
@@ -23,7 +25,7 @@ interface RouteTablePanelProps {
   selectedProject: ProjectResponse | null;
 }
 
-const routeTargets: NetworkRouteTargetType[] = ["INTERNET_GATEWAY"];
+const routeTargets: NetworkRouteTargetType[] = ["INTERNET_GATEWAY", "NAT_GATEWAY"];
 
 export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
   const session = getAuthSession();
@@ -31,11 +33,13 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
   const [vpcs, setVpcs] = useState<VpcResponse[]>([]);
   const [vpcId, setVpcId] = useState("");
   const [subnets, setSubnets] = useState<SubnetResponse[]>([]);
+  const [natGateways, setNatGateways] = useState<NatGatewayResponse[]>([]);
   const [routeTables, setRouteTables] = useState<RouteTableResponse[]>([]);
   const [name, setName] = useState("edge-rt");
   const [routeTableId, setRouteTableId] = useState("");
   const [destinationCidr, setDestinationCidr] = useState("0.0.0.0/0");
   const [targetType, setTargetType] = useState<NetworkRouteTargetType>("INTERNET_GATEWAY");
+  const [targetResourceId, setTargetResourceId] = useState("");
   const [associateSubnetId, setAssociateSubnetId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -44,6 +48,7 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
       setVpcs([]);
       setVpcId("");
       setSubnets([]);
+      setNatGateways([]);
       setRouteTables([]);
       return;
     }
@@ -56,14 +61,18 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
       setRouteTables([]);
       return;
     }
-    const [latestSubnets, latestRouteTables] = await Promise.all([
+    const [latestSubnets, latestRouteTables, latestNatGateways] = await Promise.all([
       listSubnets(tenantId.trim(), selectedProject.id, nextVpcId),
-      listRouteTables(nextVpcId)
+      listRouteTables(nextVpcId),
+      listNatGateways(tenantId.trim(), selectedProject.id)
     ]);
+    const filteredNatGateways = latestNatGateways.filter((item) => item.vpcId === nextVpcId);
     setSubnets(latestSubnets);
+    setNatGateways(filteredNatGateways);
     setAssociateSubnetId((current) => (current && latestSubnets.some((item) => item.id === current) ? current : latestSubnets[0]?.id ?? ""));
     setRouteTables(latestRouteTables);
     setRouteTableId((current) => (current && latestRouteTables.some((item) => item.id === current) ? current : latestRouteTables[0]?.id ?? ""));
+    setTargetResourceId((current) => (current && filteredNatGateways.some((item) => item.id === current) ? current : filteredNatGateways[0]?.id ?? ""));
   };
 
   useEffect(() => {
@@ -73,6 +82,7 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
           setVpcs([]);
           setVpcId("");
           setSubnets([]);
+          setNatGateways([]);
           setRouteTables([]);
           return;
         }
@@ -85,14 +95,18 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
           setRouteTables([]);
           return;
         }
-        const [latestSubnets, latestRouteTables] = await Promise.all([
+        const [latestSubnets, latestRouteTables, latestNatGateways] = await Promise.all([
           listSubnets(tenantId.trim(), selectedProject.id, nextVpcId),
-          listRouteTables(nextVpcId)
+          listRouteTables(nextVpcId),
+          listNatGateways(tenantId.trim(), selectedProject.id)
         ]);
+        const filteredNatGateways = latestNatGateways.filter((item) => item.vpcId === nextVpcId);
         setSubnets(latestSubnets);
+        setNatGateways(filteredNatGateways);
         setAssociateSubnetId((current) => (current && latestSubnets.some((item) => item.id === current) ? current : latestSubnets[0]?.id ?? ""));
         setRouteTables(latestRouteTables);
         setRouteTableId((current) => (current && latestRouteTables.some((item) => item.id === current) ? current : latestRouteTables[0]?.id ?? ""));
+        setTargetResourceId((current) => (current && filteredNatGateways.some((item) => item.id === current) ? current : filteredNatGateways[0]?.id ?? ""));
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : "Route Table 조회에 실패했습니다.");
       }
@@ -120,9 +134,13 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
       setErrorMessage("Route Table을 먼저 선택하세요.");
       return;
     }
+    if (targetType === "NAT_GATEWAY" && !targetResourceId) {
+      setErrorMessage("NAT Gateway를 먼저 선택하세요.");
+      return;
+    }
     setErrorMessage("");
     try {
-      await createRoute(routeTableId, destinationCidr.trim(), targetType);
+      await createRoute(routeTableId, destinationCidr.trim(), targetType, targetType === "NAT_GATEWAY" ? targetResourceId : undefined);
       await refreshContext();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Route 생성에 실패했습니다.");
@@ -184,6 +202,16 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
             </option>
           ))}
         </select>
+        {targetType === "NAT_GATEWAY" ? (
+          <select value={targetResourceId} onChange={(event) => setTargetResourceId(event.target.value)} style={inputStyle}>
+            <option value="">NAT Gateway 선택</option>
+            {natGateways.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <button type="button" style={inlineButtonStyle} onClick={() => void handleCreateRoute()}>
           Route 추가
         </button>
@@ -208,7 +236,7 @@ export function RouteTablePanel({ selectedProject }: RouteTablePanelProps) {
             <ul style={{ marginTop: 6, paddingLeft: 16 }}>
               {table.routes.map((route) => (
                 <li key={route.id} style={{ marginBottom: 6 }}>
-                  {route.destinationCidr} → {route.targetType}
+                  {route.destinationCidr} → {route.targetType}{route.targetResourceId ? ` (${route.targetResourceId.slice(0, 8)})` : ""}
                   {route.targetType !== "LOCAL" ? (
                     <button
                       type="button"
