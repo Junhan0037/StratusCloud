@@ -1623,6 +1623,197 @@ paths:
         '204':
           description: 삭제 성공
 
+  /v1/storage/buckets:
+    post:
+      tags: [storage]
+      summary: 프로젝트에 Object Storage 버킷을 생성한다.
+      operationId: createStorageBucket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStorageBucketRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageBucket'
+    get:
+      tags: [storage]
+      summary: 프로젝트의 Object Storage 버킷 목록을 조회한다.
+      operationId: listStorageBuckets
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StorageBucket'
+
+  /v1/storage/buckets/{bucketId}:
+    get:
+      tags: [storage]
+      summary: 버킷 상세를 조회한다.
+      operationId: getStorageBucket
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageBucket'
+    delete:
+      tags: [storage]
+      summary: 비어 있는 버킷을 삭제한다.
+      operationId: deleteStorageBucket
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/storage/buckets/{bucketId}/objects:
+    get:
+      tags: [storage]
+      summary: 버킷의 오브젝트 목록을 조회한다.
+      operationId: listStorageObjects
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StorageObject'
+
+  /v1/storage/buckets/{bucketId}/objects:presign:
+    post:
+      tags: [storage]
+      summary: 오브젝트 업로드 또는 다운로드용 presigned URL을 발급한다.
+      operationId: createStorageObjectPresign
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStorageObjectPresignRequest'
+      responses:
+        '201':
+          description: 발급 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageObjectPresign'
+
+  /v1/storage/objects/{objectId}:
+    delete:
+      tags: [storage]
+      summary: 오브젝트를 삭제한다.
+      operationId: deleteStorageObject
+      parameters:
+        - name: objectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /v1/storage/presigned/upload/{tokenId}:
+    put:
+      tags: [storage]
+      summary: presigned URL로 오브젝트 바이트를 업로드한다.
+      operationId: uploadStorageObject
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: 업로드 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageObject'
+
+  /v1/storage/presigned/download/{tokenId}:
+    get:
+      tags: [storage]
+      summary: presigned URL로 오브젝트를 다운로드한다.
+      operationId: downloadStorageObject
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 다운로드 성공
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
   /v1/audit/logs:
     get:
       tags: [audit]
@@ -1769,6 +1960,14 @@ components:
     NetworkDnsTargetType:
       type: string
       enum: [LOAD_BALANCER, ELASTIC_IP]
+
+    StorageObjectAcl:
+      type: string
+      enum: [PRIVATE, PUBLIC_READ]
+
+    StoragePresignOperation:
+      type: string
+      enum: [UPLOAD, DOWNLOAD]
 
     NetworkRuleDirection:
       type: string
@@ -2359,6 +2558,119 @@ components:
         targetId:
           type: string
           format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateStorageBucketRequest:
+      type: object
+      required: [tenantId, projectId, name]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        acl:
+          $ref: '#/components/schemas/StorageObjectAcl'
+
+    StorageBucket:
+      type: object
+      required: [id, tenantId, projectId, name, acl, objectCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        acl:
+          $ref: '#/components/schemas/StorageObjectAcl'
+        objectCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateStorageObjectPresignRequest:
+      type: object
+      required: [tenantId, projectId, operation, key]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        operation:
+          $ref: '#/components/schemas/StoragePresignOperation'
+        key:
+          type: string
+          minLength: 1
+          maxLength: 300
+        contentType:
+          type: string
+          nullable: true
+          maxLength: 120
+        acl:
+          $ref: '#/components/schemas/StorageObjectAcl'
+        expiresInSeconds:
+          type: integer
+          minimum: 0
+          maximum: 3600
+
+    StorageObjectPresign:
+      type: object
+      required: [token, operation, url, expiresAt]
+      properties:
+        token:
+          type: string
+          format: uuid
+        operation:
+          $ref: '#/components/schemas/StoragePresignOperation'
+        url:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    StorageObject:
+      type: object
+      required: [id, bucketId, key, contentType, sizeBytes, etag, acl, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        bucketId:
+          type: string
+          format: uuid
+        key:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        etag:
+          type: string
+        acl:
+          $ref: '#/components/schemas/StorageObjectAcl'
         createdAt:
           type: string
           format: date-time

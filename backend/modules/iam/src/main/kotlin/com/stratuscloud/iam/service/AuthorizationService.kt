@@ -132,7 +132,15 @@ class AuthorizationService(
                 IamAction.NETWORK_DNS_RECORD_CREATE,
                 IamAction.NETWORK_DNS_RECORD_LIST,
                 IamAction.NETWORK_DNS_RECORD_READ,
-                IamAction.NETWORK_DNS_RECORD_DELETE
+                IamAction.NETWORK_DNS_RECORD_DELETE,
+                IamAction.STORAGE_BUCKET_CREATE,
+                IamAction.STORAGE_BUCKET_LIST,
+                IamAction.STORAGE_BUCKET_READ,
+                IamAction.STORAGE_BUCKET_DELETE,
+                IamAction.STORAGE_OBJECT_LIST,
+                IamAction.STORAGE_OBJECT_READ,
+                IamAction.STORAGE_OBJECT_DELETE,
+                IamAction.STORAGE_OBJECT_PRESIGN
             ),
             RoleType.DEVELOPER to setOf(
                 IamAction.PROJECT_READ,
@@ -193,7 +201,15 @@ class AuthorizationService(
                 IamAction.NETWORK_DNS_RECORD_CREATE,
                 IamAction.NETWORK_DNS_RECORD_LIST,
                 IamAction.NETWORK_DNS_RECORD_READ,
-                IamAction.NETWORK_DNS_RECORD_DELETE
+                IamAction.NETWORK_DNS_RECORD_DELETE,
+                IamAction.STORAGE_BUCKET_CREATE,
+                IamAction.STORAGE_BUCKET_LIST,
+                IamAction.STORAGE_BUCKET_READ,
+                IamAction.STORAGE_BUCKET_DELETE,
+                IamAction.STORAGE_OBJECT_LIST,
+                IamAction.STORAGE_OBJECT_READ,
+                IamAction.STORAGE_OBJECT_DELETE,
+                IamAction.STORAGE_OBJECT_PRESIGN
             ),
             RoleType.VIEWER to setOf(
                 IamAction.PROJECT_READ,
@@ -219,7 +235,11 @@ class AuthorizationService(
                 IamAction.NETWORK_NAT_GATEWAY_LIST,
                 IamAction.NETWORK_NAT_GATEWAY_READ,
                 IamAction.NETWORK_DNS_RECORD_LIST,
-                IamAction.NETWORK_DNS_RECORD_READ
+                IamAction.NETWORK_DNS_RECORD_READ,
+                IamAction.STORAGE_BUCKET_LIST,
+                IamAction.STORAGE_BUCKET_READ,
+                IamAction.STORAGE_OBJECT_LIST,
+                IamAction.STORAGE_OBJECT_READ
             )
         )
     }

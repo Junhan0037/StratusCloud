@@ -18,6 +18,8 @@ export type NetworkElasticIpAllocationStatus = "UNASSIGNED" | "ASSIGNED";
 export type NetworkElasticIpAttachmentType = "LOAD_BALANCER" | "NAT_GATEWAY";
 export type NetworkDnsRecordType = "A";
 export type NetworkDnsTargetType = "LOAD_BALANCER" | "ELASTIC_IP";
+export type StorageObjectAcl = "PRIVATE" | "PUBLIC_READ";
+export type StoragePresignOperation = "UPLOAD" | "DOWNLOAD";
 
 export interface ProjectResponse {
   id: string;
@@ -332,6 +334,36 @@ export interface DnsRecordResponse {
   updatedAt: string;
 }
 
+export interface StorageBucketResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  acl: StorageObjectAcl;
+  objectCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StorageObjectResponse {
+  id: string;
+  bucketId: string;
+  key: string;
+  contentType: string;
+  sizeBytes: number;
+  etag: string;
+  acl: StorageObjectAcl;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoragePresignResponse {
+  token: string;
+  operation: StoragePresignOperation;
+  url: string;
+  expiresAt: string;
+}
+
 export interface AuthSession {
   bearerToken: string;
   apiKey: string;
@@ -365,6 +397,10 @@ export function getAuthSession(): AuthSession {
   return authSession;
 }
 
+export function resolveApiUrl(path: string): string {
+  return path.startsWith("http://") || path.startsWith("https://") ? path : `${API_BASE_URL}${path}`;
+}
+
 function buildHeaders(): HeadersInit {
   const headers: HeadersInit = {
     "Content-Type": "application/json"
@@ -379,7 +415,7 @@ function buildHeaders(): HeadersInit {
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
+  const response = await fetch(resolveApiUrl(path), init);
 
   if (!response.ok) {
     const fallback = {
@@ -810,6 +846,95 @@ export async function createVpc(
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify({ tenantId, projectId, name, cidrBlock })
+  });
+}
+
+export async function createStorageBucket(
+  tenantId: string,
+  projectId: string,
+  name: string,
+  acl: StorageObjectAcl = "PRIVATE"
+): Promise<StorageBucketResponse> {
+  return request<StorageBucketResponse>("/v1/storage/buckets", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tenantId, projectId, name, acl })
+  });
+}
+
+export async function listStorageBuckets(tenantId: string, projectId: string): Promise<StorageBucketResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<StorageBucketResponse[]>(`/v1/storage/buckets?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function deleteStorageBucket(bucketId: string): Promise<void> {
+  return request<void>(`/v1/storage/buckets/${bucketId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function listStorageObjects(bucketId: string): Promise<StorageObjectResponse[]> {
+  return request<StorageObjectResponse[]>(`/v1/storage/buckets/${bucketId}/objects`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function createStoragePresign(
+  tenantId: string,
+  projectId: string,
+  bucketId: string,
+  operation: StoragePresignOperation,
+  key: string,
+  contentType?: string,
+  acl?: StorageObjectAcl,
+  expiresInSeconds = 900
+): Promise<StoragePresignResponse> {
+  return request<StoragePresignResponse>(`/v1/storage/buckets/${bucketId}/objects:presign`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      tenantId,
+      projectId,
+      operation,
+      key,
+      contentType: contentType?.trim() ? contentType.trim() : null,
+      acl: acl ?? null,
+      expiresInSeconds
+    })
+  });
+}
+
+export async function uploadStorageObject(presignUrl: string, file: File): Promise<StorageObjectResponse> {
+  const response = await fetch(resolveApiUrl(presignUrl), {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream"
+    },
+    body: file
+  });
+
+  if (!response.ok) {
+    const fallback = {
+      code: "UNKNOWN_ERROR",
+      message: "업로드 중 오류가 발생했습니다.",
+      traceId: "unknown"
+    } satisfies ApiErrorResponse;
+    const payload = (await response.json().catch(() => fallback)) as ApiErrorResponse;
+    throw new Error(`[${payload.code}] ${payload.message} (traceId=${payload.traceId})`);
+  }
+
+  return (await response.json()) as StorageObjectResponse;
+}
+
+export async function deleteStorageObject(objectId: string): Promise<void> {
+  return request<void>(`/v1/storage/objects/${objectId}`, {
+    method: "DELETE",
+    headers: buildHeaders()
   });
 }
 

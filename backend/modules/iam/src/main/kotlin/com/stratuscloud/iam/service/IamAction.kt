@@ -75,4 +75,12 @@ object IamAction {
     const val NETWORK_DNS_RECORD_LIST = "network:dns-record:list"
     const val NETWORK_DNS_RECORD_READ = "network:dns-record:read"
     const val NETWORK_DNS_RECORD_DELETE = "network:dns-record:delete"
+    const val STORAGE_BUCKET_CREATE = "storage:bucket:create"
+    const val STORAGE_BUCKET_LIST = "storage:bucket:list"
+    const val STORAGE_BUCKET_READ = "storage:bucket:read"
+    const val STORAGE_BUCKET_DELETE = "storage:bucket:delete"
+    const val STORAGE_OBJECT_LIST = "storage:object:list"
+    const val STORAGE_OBJECT_READ = "storage:object:read"
+    const val STORAGE_OBJECT_DELETE = "storage:object:delete"
+    const val STORAGE_OBJECT_PRESIGN = "storage:object:presign"
 }
