@@ -1,5 +1,8 @@
 package com.stratuscloud.api.storage.dto
 
+import com.stratuscloud.governance.service.StorageBucketMeteringSnapshot
+import com.stratuscloud.governance.service.StoragePolicySnapshot
+import com.stratuscloud.governance.service.StorageProjectMeteringSnapshot
 import com.stratuscloud.storage.domain.StorageBucketEntity
 import com.stratuscloud.storage.domain.StorageObjectAcl
 import com.stratuscloud.storage.domain.StorageObjectEntity
@@ -108,6 +111,103 @@ data class StorageObjectResponse(
                 acl = entity.acl,
                 createdAt = entity.createdAt,
                 updatedAt = entity.updatedAt
+            )
+        }
+    }
+}
+
+data class UpdateStorageTagsRequest(
+    val tags: List<String> = emptyList()
+)
+
+data class StorageTagsResponse(
+    val resourceId: UUID,
+    val tags: List<String>
+)
+
+data class UpdateStorageGovernancePolicyRequest(
+    val tenantId: UUID,
+    val maxBucketCount: Int? = null,
+    val maxObjectCount: Long? = null,
+    val maxTotalBytes: Long? = null,
+    val presignPerMinute: Int? = null,
+    val uploadPerMinute: Int? = null,
+    val downloadPerMinute: Int? = null
+)
+
+data class StorageGovernancePolicyResponse(
+    val tenantId: UUID,
+    val projectId: UUID,
+    val maxBucketCount: Int?,
+    val maxObjectCount: Long?,
+    val maxTotalBytes: Long?,
+    val presignPerMinute: Int?,
+    val uploadPerMinute: Int?,
+    val downloadPerMinute: Int?
+) {
+    companion object {
+        fun from(snapshot: StoragePolicySnapshot): StorageGovernancePolicyResponse {
+            return StorageGovernancePolicyResponse(
+                tenantId = snapshot.tenantId,
+                projectId = snapshot.projectId,
+                maxBucketCount = snapshot.maxBucketCount,
+                maxObjectCount = snapshot.maxObjectCount,
+                maxTotalBytes = snapshot.maxTotalBytes,
+                presignPerMinute = snapshot.presignPerMinute,
+                uploadPerMinute = snapshot.uploadPerMinute,
+                downloadPerMinute = snapshot.downloadPerMinute
+            )
+        }
+    }
+}
+
+data class StorageProjectMeteringResponse(
+    val tenantId: UUID,
+    val projectId: UUID,
+    val bucketCount: Long,
+    val objectCount: Long,
+    val storedBytes: Long,
+    val uploadedBytes: Long,
+    val downloadedBytes: Long,
+    val lastRecordedAt: LocalDateTime
+) {
+    companion object {
+        fun from(snapshot: StorageProjectMeteringSnapshot): StorageProjectMeteringResponse {
+            return StorageProjectMeteringResponse(
+                tenantId = snapshot.tenantId,
+                projectId = snapshot.projectId,
+                bucketCount = snapshot.bucketCount,
+                objectCount = snapshot.objectCount,
+                storedBytes = snapshot.storedBytes,
+                uploadedBytes = snapshot.uploadedBytes,
+                downloadedBytes = snapshot.downloadedBytes,
+                lastRecordedAt = snapshot.lastRecordedAt
+            )
+        }
+    }
+}
+
+data class StorageBucketMeteringResponse(
+    val tenantId: UUID,
+    val projectId: UUID,
+    val bucketId: UUID,
+    val objectCount: Long,
+    val storedBytes: Long,
+    val uploadedBytes: Long,
+    val downloadedBytes: Long,
+    val lastRecordedAt: LocalDateTime
+) {
+    companion object {
+        fun from(snapshot: StorageBucketMeteringSnapshot): StorageBucketMeteringResponse {
+            return StorageBucketMeteringResponse(
+                tenantId = snapshot.tenantId,
+                projectId = snapshot.projectId,
+                bucketId = snapshot.bucketId,
+                objectCount = snapshot.objectCount,
+                storedBytes = snapshot.storedBytes,
+                uploadedBytes = snapshot.uploadedBytes,
+                downloadedBytes = snapshot.downloadedBytes,
+                lastRecordedAt = snapshot.lastRecordedAt
             )
         }
     }

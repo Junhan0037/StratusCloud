@@ -364,6 +364,44 @@ export interface StoragePresignResponse {
   expiresAt: string;
 }
 
+export interface StorageTagsResponse {
+  resourceId: string;
+  tags: string[];
+}
+
+export interface StorageGovernancePolicyResponse {
+  tenantId: string;
+  projectId: string;
+  maxBucketCount: number | null;
+  maxObjectCount: number | null;
+  maxTotalBytes: number | null;
+  presignPerMinute: number | null;
+  uploadPerMinute: number | null;
+  downloadPerMinute: number | null;
+}
+
+export interface StorageProjectMeteringResponse {
+  tenantId: string;
+  projectId: string;
+  bucketCount: number;
+  objectCount: number;
+  storedBytes: number;
+  uploadedBytes: number;
+  downloadedBytes: number;
+  lastRecordedAt: string;
+}
+
+export interface StorageBucketMeteringResponse {
+  tenantId: string;
+  projectId: string;
+  bucketId: string;
+  objectCount: number;
+  storedBytes: number;
+  uploadedBytes: number;
+  downloadedBytes: number;
+  lastRecordedAt: string;
+}
+
 export interface AuthSession {
   bearerToken: string;
   apiKey: string;
@@ -877,10 +915,69 @@ export async function deleteStorageBucket(bucketId: string): Promise<void> {
   });
 }
 
+export async function getStorageGovernancePolicy(projectId: string): Promise<StorageGovernancePolicyResponse> {
+  return request<StorageGovernancePolicyResponse>(`/v1/governance/storage/policies/projects/${projectId}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function updateStorageGovernancePolicy(
+  tenantId: string,
+  projectId: string,
+  policy: {
+    maxBucketCount: number | null;
+    maxObjectCount: number | null;
+    maxTotalBytes: number | null;
+    presignPerMinute: number | null;
+    uploadPerMinute: number | null;
+    downloadPerMinute: number | null;
+  }
+): Promise<StorageGovernancePolicyResponse> {
+  return request<StorageGovernancePolicyResponse>(`/v1/governance/storage/policies/projects/${projectId}`, {
+    method: "PUT",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      tenantId,
+      ...policy
+    })
+  });
+}
+
 export async function listStorageObjects(bucketId: string): Promise<StorageObjectResponse[]> {
   return request<StorageObjectResponse[]>(`/v1/storage/buckets/${bucketId}/objects`, {
     method: "GET",
     headers: buildHeaders()
+  });
+}
+
+export async function listStorageBucketTags(bucketId: string): Promise<StorageTagsResponse> {
+  return request<StorageTagsResponse>(`/v1/storage/buckets/${bucketId}/tags`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function updateStorageBucketTags(bucketId: string, tags: string[]): Promise<StorageTagsResponse> {
+  return request<StorageTagsResponse>(`/v1/storage/buckets/${bucketId}/tags`, {
+    method: "PUT",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tags })
+  });
+}
+
+export async function listStorageObjectTags(objectId: string): Promise<StorageTagsResponse> {
+  return request<StorageTagsResponse>(`/v1/storage/objects/${objectId}/tags`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function updateStorageObjectTags(objectId: string, tags: string[]): Promise<StorageTagsResponse> {
+  return request<StorageTagsResponse>(`/v1/storage/objects/${objectId}/tags`, {
+    method: "PUT",
+    headers: buildHeaders(),
+    body: JSON.stringify({ tags })
   });
 }
 
@@ -934,6 +1031,20 @@ export async function uploadStorageObject(presignUrl: string, file: File): Promi
 export async function deleteStorageObject(objectId: string): Promise<void> {
   return request<void>(`/v1/storage/objects/${objectId}`, {
     method: "DELETE",
+    headers: buildHeaders()
+  });
+}
+
+export async function getStorageProjectMetering(projectId: string): Promise<StorageProjectMeteringResponse> {
+  return request<StorageProjectMeteringResponse>(`/v1/governance/storage/metering/projects/${projectId}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function getStorageBucketMetering(bucketId: string): Promise<StorageBucketMeteringResponse> {
+  return request<StorageBucketMeteringResponse>(`/v1/governance/storage/metering/buckets/${bucketId}`, {
+    method: "GET",
     headers: buildHeaders()
   });
 }

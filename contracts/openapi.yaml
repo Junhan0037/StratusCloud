@@ -22,6 +22,10 @@ tags:
     description: Compute Image 및 Instance API
   - name: network
     description: VPC/Subnet/Route Table/Security Group API
+  - name: storage
+    description: Object Storage 및 태그 API
+  - name: governance
+    description: 스토리지 거버넌스 정책 및 미터링 API
   - name: audit
     description: 감사로그 조회 API
 
@@ -1766,6 +1770,94 @@ paths:
         '204':
           description: 삭제 성공
 
+  /v1/storage/buckets/{bucketId}/tags:
+    get:
+      tags: [storage]
+      summary: 버킷 태그를 조회한다.
+      operationId: getStorageBucketTags
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageTags'
+    put:
+      tags: [storage]
+      summary: 버킷 태그를 전체 교체한다.
+      operationId: updateStorageBucketTags
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStorageTagsRequest'
+      responses:
+        '200':
+          description: 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageTags'
+
+  /v1/storage/objects/{objectId}/tags:
+    get:
+      tags: [storage]
+      summary: 오브젝트 태그를 조회한다.
+      operationId: getStorageObjectTags
+      parameters:
+        - name: objectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageTags'
+    put:
+      tags: [storage]
+      summary: 오브젝트 태그를 전체 교체한다.
+      operationId: updateStorageObjectTags
+      parameters:
+        - name: objectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStorageTagsRequest'
+      responses:
+        '200':
+          description: 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageTags'
+
   /v1/storage/presigned/upload/{tokenId}:
     put:
       tags: [storage]
@@ -1813,6 +1905,90 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  /v1/governance/storage/policies/projects/{projectId}:
+    get:
+      tags: [governance]
+      summary: 프로젝트의 스토리지 거버넌스 정책을 조회한다.
+      operationId: getStorageGovernancePolicy
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageGovernancePolicy'
+    put:
+      tags: [governance]
+      summary: 프로젝트의 스토리지 거버넌스 정책을 저장한다.
+      operationId: updateStorageGovernancePolicy
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStorageGovernancePolicyRequest'
+      responses:
+        '200':
+          description: 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageGovernancePolicy'
+
+  /v1/governance/storage/metering/projects/{projectId}:
+    get:
+      tags: [governance]
+      summary: 프로젝트 스토리지 미터링을 조회한다.
+      operationId: getStorageProjectMetering
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageProjectMetering'
+
+  /v1/governance/storage/metering/buckets/{bucketId}:
+    get:
+      tags: [governance]
+      summary: 버킷 스토리지 미터링을 조회한다.
+      operationId: getStorageBucketMetering
+      parameters:
+        - name: bucketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageBucketMetering'
 
   /v1/audit/logs:
     get:
@@ -2675,6 +2851,143 @@ components:
           type: string
           format: date-time
         updatedAt:
+          type: string
+          format: date-time
+
+    UpdateStorageTagsRequest:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+
+    StorageTags:
+      type: object
+      required: [resourceId, tags]
+      properties:
+        resourceId:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+
+    UpdateStorageGovernancePolicyRequest:
+      type: object
+      required: [tenantId]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        maxBucketCount:
+          type: integer
+          nullable: true
+        maxObjectCount:
+          type: integer
+          format: int64
+          nullable: true
+        maxTotalBytes:
+          type: integer
+          format: int64
+          nullable: true
+        presignPerMinute:
+          type: integer
+          nullable: true
+        uploadPerMinute:
+          type: integer
+          nullable: true
+        downloadPerMinute:
+          type: integer
+          nullable: true
+
+    StorageGovernancePolicy:
+      type: object
+      required: [tenantId, projectId]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        maxBucketCount:
+          type: integer
+          nullable: true
+        maxObjectCount:
+          type: integer
+          format: int64
+          nullable: true
+        maxTotalBytes:
+          type: integer
+          format: int64
+          nullable: true
+        presignPerMinute:
+          type: integer
+          nullable: true
+        uploadPerMinute:
+          type: integer
+          nullable: true
+        downloadPerMinute:
+          type: integer
+          nullable: true
+
+    StorageProjectMetering:
+      type: object
+      required: [tenantId, projectId, bucketCount, objectCount, storedBytes, uploadedBytes, downloadedBytes, lastRecordedAt]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        bucketCount:
+          type: integer
+          format: int64
+        objectCount:
+          type: integer
+          format: int64
+        storedBytes:
+          type: integer
+          format: int64
+        uploadedBytes:
+          type: integer
+          format: int64
+        downloadedBytes:
+          type: integer
+          format: int64
+        lastRecordedAt:
+          type: string
+          format: date-time
+
+    StorageBucketMetering:
+      type: object
+      required: [tenantId, projectId, bucketId, objectCount, storedBytes, uploadedBytes, downloadedBytes, lastRecordedAt]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        bucketId:
+          type: string
+          format: uuid
+        objectCount:
+          type: integer
+          format: int64
+        storedBytes:
+          type: integer
+          format: int64
+        uploadedBytes:
+          type: integer
+          format: int64
+        downloadedBytes:
+          type: integer
+          format: int64
+        lastRecordedAt:
           type: string
           format: date-time
 

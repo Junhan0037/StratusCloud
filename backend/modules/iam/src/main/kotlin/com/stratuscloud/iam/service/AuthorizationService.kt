@@ -140,7 +140,14 @@ class AuthorizationService(
                 IamAction.STORAGE_OBJECT_LIST,
                 IamAction.STORAGE_OBJECT_READ,
                 IamAction.STORAGE_OBJECT_DELETE,
-                IamAction.STORAGE_OBJECT_PRESIGN
+                IamAction.STORAGE_OBJECT_PRESIGN,
+                IamAction.STORAGE_BUCKET_TAGS_READ,
+                IamAction.STORAGE_BUCKET_TAGS_WRITE,
+                IamAction.STORAGE_OBJECT_TAGS_READ,
+                IamAction.STORAGE_OBJECT_TAGS_WRITE,
+                IamAction.GOVERNANCE_STORAGE_POLICY_READ,
+                IamAction.GOVERNANCE_STORAGE_POLICY_WRITE,
+                IamAction.GOVERNANCE_STORAGE_METERING_READ
             ),
             RoleType.DEVELOPER to setOf(
                 IamAction.PROJECT_READ,
@@ -209,7 +216,13 @@ class AuthorizationService(
                 IamAction.STORAGE_OBJECT_LIST,
                 IamAction.STORAGE_OBJECT_READ,
                 IamAction.STORAGE_OBJECT_DELETE,
-                IamAction.STORAGE_OBJECT_PRESIGN
+                IamAction.STORAGE_OBJECT_PRESIGN,
+                IamAction.STORAGE_BUCKET_TAGS_READ,
+                IamAction.STORAGE_BUCKET_TAGS_WRITE,
+                IamAction.STORAGE_OBJECT_TAGS_READ,
+                IamAction.STORAGE_OBJECT_TAGS_WRITE,
+                IamAction.GOVERNANCE_STORAGE_POLICY_READ,
+                IamAction.GOVERNANCE_STORAGE_METERING_READ
             ),
             RoleType.VIEWER to setOf(
                 IamAction.PROJECT_READ,
@@ -239,7 +252,11 @@ class AuthorizationService(
                 IamAction.STORAGE_BUCKET_LIST,
                 IamAction.STORAGE_BUCKET_READ,
                 IamAction.STORAGE_OBJECT_LIST,
-                IamAction.STORAGE_OBJECT_READ
+                IamAction.STORAGE_OBJECT_READ,
+                IamAction.STORAGE_BUCKET_TAGS_READ,
+                IamAction.STORAGE_OBJECT_TAGS_READ,
+                IamAction.GOVERNANCE_STORAGE_POLICY_READ,
+                IamAction.GOVERNANCE_STORAGE_METERING_READ
             )
         )
     }

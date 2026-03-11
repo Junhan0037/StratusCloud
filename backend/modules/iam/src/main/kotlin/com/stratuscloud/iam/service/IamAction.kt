@@ -83,4 +83,11 @@ object IamAction {
     const val STORAGE_OBJECT_READ = "storage:object:read"
     const val STORAGE_OBJECT_DELETE = "storage:object:delete"
     const val STORAGE_OBJECT_PRESIGN = "storage:object:presign"
+    const val STORAGE_BUCKET_TAGS_READ = "storage:bucket-tags:read"
+    const val STORAGE_BUCKET_TAGS_WRITE = "storage:bucket-tags:write"
+    const val STORAGE_OBJECT_TAGS_READ = "storage:object-tags:read"
+    const val STORAGE_OBJECT_TAGS_WRITE = "storage:object-tags:write"
+    const val GOVERNANCE_STORAGE_POLICY_READ = "governance:storage-policy:read"
+    const val GOVERNANCE_STORAGE_POLICY_WRITE = "governance:storage-policy:write"
+    const val GOVERNANCE_STORAGE_METERING_READ = "governance:storage-metering:read"
 }

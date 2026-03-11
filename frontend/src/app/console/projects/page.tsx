@@ -23,16 +23,16 @@ import { ProjectPanel } from "@/features/iam/projects/ProjectPanel";
 import { SecretPanel } from "@/features/iam/secrets/SecretPanel";
 import { ProjectResponse } from "@/shared/lib/api/client";
 
-// Week 9 Object Storage 흐름까지 한 화면에서 검증하기 위한 콘솔 페이지다.
+// Week 10 Storage Governance 흐름까지 한 화면에서 검증하기 위한 콘솔 페이지다.
 export default function ConsoleProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<ProjectResponse | null>(null);
 
   return (
     <main style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 20px" }}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>Week 9 Storage Console</h1>
+        <h1 style={{ margin: 0 }}>Week 10 Storage Governance Console</h1>
         <p style={{ marginTop: 10, color: "#5d6b7d" }}>
-          JWT/API Key 인증, IAM, Audit, Compute, Network, Object Storage 흐름까지 빠르게 검증할 수 있는 운영 화면입니다.
+          JWT/API Key 인증, IAM, Audit, Compute, Network, Object Storage, Governance 흐름까지 빠르게 검증할 수 있는 운영 화면입니다.
         </p>
       </header>
 

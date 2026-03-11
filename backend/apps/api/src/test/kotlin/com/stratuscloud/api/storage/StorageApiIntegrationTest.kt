@@ -210,6 +210,236 @@ class StorageApiIntegrationTest {
         assertThat(deniedLogs).isNotEmpty
     }
 
+    @Test
+    fun `스토리지 정책을 설정하고 버킷 quota를 초과하면 생성이 거부되어야 한다`() {
+        val fixture = createFixture("storage-governance-quota")
+
+        mockMvc.put("/v1/governance/storage/policies/projects/${fixture.project.id}") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "maxBucketCount" to 1,
+                    "maxObjectCount" to 100,
+                    "maxTotalBytes" to 1048576,
+                    "presignPerMinute" to 10,
+                    "uploadPerMinute" to 10,
+                    "downloadPerMinute" to 10
+                )
+            )
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.projectId") { value(fixture.project.id.toString()) }
+            jsonPath("$.maxBucketCount") { value(1) }
+        }
+
+        createBucket(fixture, "quota-bucket-a")
+
+        mockMvc.post("/v1/storage/buckets") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "projectId" to fixture.project.id,
+                    "name" to "quota-bucket-b",
+                    "acl" to "PRIVATE"
+                )
+            )
+        }.andExpect {
+            status { isBadRequest() }
+            jsonPath("$.code") { value("BAD_REQUEST") }
+            jsonPath("$.message") { value("bucket quota exceeded for project: ${fixture.project.id}") }
+        }
+    }
+
+    @Test
+    fun `분당 presign 요청 제한을 넘으면 too many requests가 반환되어야 한다`() {
+        val fixture = createFixture("storage-governance-rate")
+        val bucket = createBucket(fixture, "rate-bucket")
+
+        mockMvc.put("/v1/governance/storage/policies/projects/${fixture.project.id}") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id,
+                    "maxBucketCount" to 10,
+                    "maxObjectCount" to 100,
+                    "maxTotalBytes" to 1048576,
+                    "presignPerMinute" to 1,
+                    "uploadPerMinute" to 10,
+                    "downloadPerMinute" to 10
+                )
+            )
+        }.andExpect {
+            status { isOk() }
+        }
+
+        createPresign(
+            fixture = fixture,
+            bucketId = bucket.get("id").asText(),
+            operation = "UPLOAD",
+            key = "rate/object-a.txt",
+            objectContentType = "text/plain"
+        )
+
+        mockMvc.post("/v1/storage/buckets/${bucket.get("id").asText()}/objects:presign") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(
+                mapOf(
+                    "tenantId" to fixture.tenant.id.toString(),
+                    "projectId" to fixture.project.id.toString(),
+                    "operation" to "UPLOAD",
+                    "key" to "rate/object-b.txt",
+                    "expiresInSeconds" to 900,
+                    "contentType" to "text/plain"
+                )
+            )
+        }.andExpect {
+            status { isTooManyRequests() }
+            jsonPath("$.code") { value("TOO_MANY_REQUESTS") }
+        }
+    }
+
+    @Test
+    fun `버킷과 오브젝트 태그를 저장하고 다시 조회할 수 있어야 한다`() {
+        val fixture = createFixture("storage-governance-tags")
+        val bucket = createBucket(fixture, "tag-bucket")
+        val uploadPresign = createPresign(
+            fixture = fixture,
+            bucketId = bucket.get("id").asText(),
+            operation = "UPLOAD",
+            key = "tagged/app.txt",
+            objectContentType = "text/plain"
+        )
+        val uploadUri = URI(uploadPresign.get("url").asText())
+        mockMvc.put(uploadUri.rawPath + "?" + uploadUri.rawQuery) {
+            contentType = MediaType.TEXT_PLAIN
+            content = "tagged-object".toByteArray()
+        }.andExpect {
+            status { isCreated() }
+        }
+
+        val objectsResponse = mockMvc.get("/v1/storage/buckets/${bucket.get("id").asText()}/objects") {
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+        }.andReturn().response.contentAsString
+        val objectId = objectMapper.readTree(objectsResponse)[0].get("id").asText()
+
+        mockMvc.put("/v1/storage/buckets/${bucket.get("id").asText()}/tags") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(mapOf("tags" to listOf("backup", "cold")))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.tags.length()") { value(2) }
+        }
+
+        mockMvc.put("/v1/storage/objects/$objectId/tags") {
+            contentType = MediaType.APPLICATION_JSON
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+            content = objectMapper.writeValueAsString(mapOf("tags" to listOf("release", "artifact")))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.tags.length()") { value(2) }
+        }
+
+        mockMvc.get("/v1/storage/buckets/${bucket.get("id").asText()}/tags") {
+            header("X-Project-Role", "VIEWER")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.tags[0]") { value("backup") }
+            jsonPath("$.tags[1]") { value("cold") }
+        }
+
+        mockMvc.get("/v1/storage/objects/$objectId/tags") {
+            header("X-Project-Role", "VIEWER")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.tags[0]") { value("release") }
+            jsonPath("$.tags[1]") { value("artifact") }
+        }
+    }
+
+    @Test
+    fun `업로드와 다운로드 후 프로젝트와 버킷 미터링을 조회할 수 있어야 한다`() {
+        val fixture = createFixture("storage-governance-metering")
+        val bucket = createBucket(fixture, "metering-bucket")
+        val uploadPresign = createPresign(
+            fixture = fixture,
+            bucketId = bucket.get("id").asText(),
+            operation = "UPLOAD",
+            key = "metering/data.txt",
+            objectContentType = "text/plain"
+        )
+        val uploadUri = URI(uploadPresign.get("url").asText())
+        mockMvc.put(uploadUri.rawPath + "?" + uploadUri.rawQuery) {
+            contentType = MediaType.TEXT_PLAIN
+            content = "metering-body".toByteArray()
+        }.andExpect {
+            status { isCreated() }
+        }
+
+        val downloadPresign = createPresign(
+            fixture = fixture,
+            bucketId = bucket.get("id").asText(),
+            operation = "DOWNLOAD",
+            key = "metering/data.txt"
+        )
+        val downloadUri = URI(downloadPresign.get("url").asText())
+        mockMvc.get(downloadUri.rawPath + "?" + downloadUri.rawQuery)
+            .andExpect {
+                status { isOk() }
+            }
+
+        mockMvc.get("/v1/governance/storage/metering/projects/${fixture.project.id}") {
+            header("X-Project-Role", "VIEWER")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.projectId") { value(fixture.project.id.toString()) }
+            jsonPath("$.bucketCount") { value(1) }
+            jsonPath("$.objectCount") { value(1) }
+            jsonPath("$.storedBytes") { value(13) }
+            jsonPath("$.uploadedBytes") { value(13) }
+            jsonPath("$.downloadedBytes") { value(13) }
+        }
+
+        mockMvc.get("/v1/governance/storage/metering/buckets/${bucket.get("id").asText()}") {
+            header("X-Project-Role", "VIEWER")
+            header("X-Tenant-Id", fixture.tenant.id.toString())
+            header("X-Project-Id", fixture.project.id.toString())
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.bucketId") { value(bucket.get("id").asText()) }
+            jsonPath("$.objectCount") { value(1) }
+            jsonPath("$.storedBytes") { value(13) }
+            jsonPath("$.uploadedBytes") { value(13) }
+            jsonPath("$.downloadedBytes") { value(13) }
+        }
+    }
+
     private fun createBucket(fixture: Fixture, name: String): JsonNode {
         val response = mockMvc.post("/v1/storage/buckets") {
             contentType = MediaType.APPLICATION_JSON

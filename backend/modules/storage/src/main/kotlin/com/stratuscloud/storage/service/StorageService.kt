@@ -1,5 +1,7 @@
 package com.stratuscloud.storage.service
 
+import com.stratuscloud.governance.service.StorageGovernanceService
+import com.stratuscloud.governance.service.StorageRateLimitOperation
 import com.stratuscloud.iam.exception.BadRequestException
 import com.stratuscloud.iam.exception.DuplicateResourceException
 import com.stratuscloud.iam.exception.ResourceNotFoundException
@@ -26,7 +28,8 @@ class StorageService(
     private val bucketRepository: StorageBucketRepository,
     private val objectRepository: StorageObjectRepository,
     private val presignedTokenRepository: StoragePresignedTokenRepository,
-    private val localObjectStorage: LocalObjectStorage
+    private val localObjectStorage: LocalObjectStorage,
+    private val storageGovernanceService: StorageGovernanceService
 ) {
 
     @Transactional
@@ -42,7 +45,8 @@ class StorageService(
         if (bucketRepository.existsByProjectIdAndName(projectId, normalizedName)) {
             throw DuplicateResourceException("bucket already exists: $normalizedName")
         }
-        return bucketRepository.save(
+        storageGovernanceService.assertBucketQuota(projectId, bucketRepository.countByProjectId(projectId) + 1)
+        val created = bucketRepository.save(
             StorageBucketEntity(
                 tenantId = tenantId,
                 projectId = projectId,
@@ -51,6 +55,8 @@ class StorageService(
                 createdBy = actorId.toString()
             )
         )
+        storageGovernanceService.recordBucketCreated(tenantId, projectId, actorId.toString())
+        return created
     }
 
     @Transactional(readOnly = true)
@@ -71,11 +77,13 @@ class StorageService(
 
     @Transactional
     fun deleteBucket(bucketId: UUID) {
+        val bucket = getBucket(bucketId)
         if (objectRepository.countByBucketId(bucketId) > 0) {
             throw BadRequestException("cannot delete bucket with objects: $bucketId")
         }
         presignedTokenRepository.deleteAllByBucketId(bucketId)
-        bucketRepository.delete(getBucket(bucketId))
+        storageGovernanceService.recordBucketDeleted(bucket.tenantId, bucket.projectId, bucketId, bucket.createdBy)
+        bucketRepository.delete(bucket)
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +103,13 @@ class StorageService(
         val entity = getObject(objectId)
         localObjectStorage.deleteObject(requireNotNull(entity.id) { "object id is null" })
         objectRepository.delete(entity)
+        storageGovernanceService.recordObjectDeleted(
+            tenantId = entity.tenantId,
+            projectId = entity.projectId,
+            bucketId = entity.bucketId,
+            sizeBytes = entity.sizeBytes,
+            actorId = entity.createdBy
+        )
     }
 
     @Transactional
@@ -114,6 +129,7 @@ class StorageService(
         }
         val bucket = getBucket(bucketId)
         requireScope(bucket.tenantId == tenantId && bucket.projectId == projectId, "bucket scope mismatch: $bucketId")
+        storageGovernanceService.assertRateLimit(projectId, StorageRateLimitOperation.PRESIGN)
         val normalizedKey = normalizeKey(key)
         if (operation == StoragePresignOperation.UPLOAD && objectRepository.existsByBucketIdAndKey(bucketId, normalizedKey)) {
             throw DuplicateResourceException("object already exists in bucket: $normalizedKey")
@@ -143,9 +159,15 @@ class StorageService(
         if (token.usedAt != null) {
             throw UnauthorizedException("presigned url already consumed")
         }
+        storageGovernanceService.assertRateLimit(token.projectId, StorageRateLimitOperation.UPLOAD)
         if (objectRepository.existsByBucketIdAndKey(token.bucketId, token.objectKey)) {
             throw DuplicateResourceException("object already exists in bucket: ${token.objectKey}")
         }
+        storageGovernanceService.assertObjectUploadQuota(
+            projectId = token.projectId,
+            nextObjectCount = objectRepository.countByProjectId(token.projectId) + 1,
+            nextStoredBytes = objectRepository.sumSizeBytesByProjectId(token.projectId) + content.size.toLong()
+        )
         val entity = objectRepository.save(
             StorageObjectEntity(
                 tenantId = token.tenantId,
@@ -162,15 +184,31 @@ class StorageService(
         localObjectStorage.writeObject(requireNotNull(entity.id) { "object id is null" }, content)
         token.usedAt = LocalDateTime.now()
         presignedTokenRepository.save(token)
+        storageGovernanceService.recordObjectUploaded(
+            tenantId = token.tenantId,
+            projectId = token.projectId,
+            bucketId = token.bucketId,
+            sizeBytes = entity.sizeBytes,
+            actorId = token.createdBy
+        )
         return entity
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun downloadObject(tokenId: UUID): Pair<StorageObjectEntity, ByteArray> {
         val token = resolveToken(tokenId, StoragePresignOperation.DOWNLOAD)
+        storageGovernanceService.assertRateLimit(token.projectId, StorageRateLimitOperation.DOWNLOAD)
         val entity = objectRepository.findByBucketIdAndKey(token.bucketId, token.objectKey)
             ?: throw UnauthorizedException("presigned object is missing")
-        return entity to localObjectStorage.readObject(requireNotNull(entity.id) { "object id is null" })
+        val body = localObjectStorage.readObject(requireNotNull(entity.id) { "object id is null" })
+        storageGovernanceService.recordObjectDownloaded(
+            tenantId = token.tenantId,
+            projectId = token.projectId,
+            bucketId = token.bucketId,
+            sizeBytes = entity.sizeBytes,
+            actorId = token.createdBy
+        )
+        return entity to body
     }
 
     private fun resolveToken(tokenId: UUID, operation: StoragePresignOperation): StoragePresignedTokenEntity {

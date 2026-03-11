@@ -13,7 +13,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories
         "com.stratuscloud.audit.domain",
         "com.stratuscloud.compute.domain",
         "com.stratuscloud.network.domain",
-        "com.stratuscloud.storage.domain"
+        "com.stratuscloud.storage.domain",
+        "com.stratuscloud.governance.domain"
     ]
 )
 @EnableJpaRepositories(
@@ -22,7 +23,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories
         "com.stratuscloud.audit.repository",
         "com.stratuscloud.compute.repository",
         "com.stratuscloud.network.repository",
-        "com.stratuscloud.storage.repository"
+        "com.stratuscloud.storage.repository",
+        "com.stratuscloud.governance.repository"
     ]
 )
 class StratusCloudApiApplication

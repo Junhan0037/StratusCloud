@@ -5,6 +5,7 @@ import com.stratuscloud.iam.exception.BadRequestException
 import com.stratuscloud.iam.exception.DuplicateResourceException
 import com.stratuscloud.iam.exception.ForbiddenException
 import com.stratuscloud.iam.exception.ResourceNotFoundException
+import com.stratuscloud.iam.exception.TooManyRequestsException
 import com.stratuscloud.iam.exception.UnauthorizedException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -40,6 +41,11 @@ class GlobalExceptionHandler(
     @ExceptionHandler(UnauthorizedException::class)
     fun handleUnauthorized(ex: UnauthorizedException): ResponseEntity<ErrorResponse> {
         return build(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", ex.message ?: "unauthorized")
+    }
+
+    @ExceptionHandler(TooManyRequestsException::class)
+    fun handleTooManyRequests(ex: TooManyRequestsException): ResponseEntity<ErrorResponse> {
+        return build(HttpStatus.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS", ex.message ?: "too many requests")
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
