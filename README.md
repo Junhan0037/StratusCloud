@@ -16,9 +16,12 @@ StratusCloud는 개인/소규모 팀을 위한 셀프서비스 클라우드 플�
 
 ```bash
 cd backend
+docker compose -f docker-compose.local.yml up -d --build
 ./gradlew clean test
 ./gradlew :apps:api:bootRun
 ```
+
+로컬 의존성 설정과 인증 예시는 [backend/README.md](backend/README.md)를 참고한다.
 
 ### Frontend
 
