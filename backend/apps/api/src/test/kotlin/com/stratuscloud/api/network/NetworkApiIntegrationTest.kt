@@ -608,6 +608,34 @@ class NetworkApiIntegrationTest {
         assertThat(deniedLogs).isNotEmpty
     }
 
+    @Test
+    fun `다른 tenant 사용자는 vpc를 조회할 수 없고 denied audit가 남아야 한다`() {
+        val ownerFixture = createFixture("network-tenant-owner")
+        val attackerFixture = createFixture("network-tenant-attacker")
+        val vpcId = createVpc(ownerFixture, "isolated-vpc", "10.77.0.0/16").get("id").asText()
+
+        mockMvc.get("/v1/network/vpcs/$vpcId") {
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", attackerFixture.tenant.id.toString())
+            header("X-Project-Id", attackerFixture.project.id.toString())
+        }.andExpect {
+            status { isForbidden() }
+            jsonPath("$.code") { value("FORBIDDEN") }
+        }
+
+        val deniedLogs = auditEventRepository.search(
+            tenantId = ownerFixture.tenant.id,
+            projectId = ownerFixture.project.id,
+            actorId = null,
+            resourceType = "VPC",
+            action = "network:vpc:read",
+            result = AuditResult.DENIED,
+            occurredFrom = null,
+            occurredTo = null
+        )
+        assertThat(deniedLogs).isNotEmpty
+    }
+
     private fun createVpc(fixture: Fixture, name: String, cidrBlock: String) =
         objectMapper.readTree(
             mockMvc.post("/v1/network/vpcs") {

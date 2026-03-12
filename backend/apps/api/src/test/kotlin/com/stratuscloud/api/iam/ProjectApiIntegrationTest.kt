@@ -1,10 +1,13 @@
 package com.stratuscloud.api.iam
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.stratuscloud.audit.domain.AuditResult
+import com.stratuscloud.audit.repository.AuditEventRepository
 import com.stratuscloud.iam.domain.ProjectEntity
 import com.stratuscloud.iam.domain.TenantEntity
 import com.stratuscloud.iam.repository.ProjectRepository
 import com.stratuscloud.iam.repository.TenantRepository
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -32,6 +35,9 @@ class ProjectApiIntegrationTest {
 
     @Autowired
     private lateinit var projectRepository: ProjectRepository
+
+    @Autowired
+    private lateinit var auditEventRepository: AuditEventRepository
 
     @Test
     fun `ADMIN 역할이면 프로젝트 생성이 성공해야 한다`() {
@@ -101,5 +107,49 @@ class ProjectApiIntegrationTest {
             jsonPath("$.id") { value(project.id.toString()) }
             jsonPath("$.name") { value("lookup-project") }
         }
+    }
+
+    @Test
+    fun `다른 tenant 사용자는 프로젝트를 조회할 수 없고 denied audit가 남아야 한다`() {
+        val ownerTenant = tenantRepository.save(
+            TenantEntity(
+                name = "owner-tenant",
+                createdBy = "tester"
+            )
+        )
+        val attackerTenant = tenantRepository.save(
+            TenantEntity(
+                name = "attacker-tenant",
+                createdBy = "tester"
+            )
+        )
+        val project = projectRepository.save(
+            ProjectEntity(
+                tenantId = requireNotNull(ownerTenant.id),
+                name = "tenant-isolated-project",
+                createdBy = "tester"
+            )
+        )
+
+        mockMvc.get("/v1/projects/${requireNotNull(project.id)}") {
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", attackerTenant.id.toString())
+            header("X-Actor-Id", UUID.randomUUID().toString())
+        }.andExpect {
+            status { isForbidden() }
+            jsonPath("$.code") { value("FORBIDDEN") }
+        }
+
+        val deniedLogs = auditEventRepository.search(
+            tenantId = ownerTenant.id,
+            projectId = project.id,
+            actorId = null,
+            resourceType = "PROJECT",
+            action = "iam:project:read",
+            result = AuditResult.DENIED,
+            occurredFrom = null,
+            occurredTo = null
+        )
+        assertThat(deniedLogs).isNotEmpty
     }
 }

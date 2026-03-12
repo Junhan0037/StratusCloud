@@ -402,6 +402,28 @@ export interface StorageBucketMeteringResponse {
   lastRecordedAt: string;
 }
 
+export interface OperationsSummaryResponse {
+  serviceStatus: string;
+  coreReadP95Ms: number | null;
+  coreWriteP95Ms: number | null;
+  requestCount: number;
+  serverErrorRate: number;
+  deniedCountLast15m: number;
+}
+
+export interface HttpMetricItemResponse {
+  uri: string;
+  method: string;
+  count: number;
+  maxMs: number;
+  p95Ms: number | null;
+  errorCount: number;
+}
+
+export interface HttpMetricsResponse {
+  items: HttpMetricItemResponse[];
+}
+
 export interface AuthSession {
   bearerToken: string;
   apiKey: string;
@@ -1044,6 +1066,20 @@ export async function getStorageProjectMetering(projectId: string): Promise<Stor
 
 export async function getStorageBucketMetering(bucketId: string): Promise<StorageBucketMeteringResponse> {
   return request<StorageBucketMeteringResponse>(`/v1/governance/storage/metering/buckets/${bucketId}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function getOperationsSummary(): Promise<OperationsSummaryResponse> {
+  return request<OperationsSummaryResponse>("/v1/system/operations/summary", {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function listOperationsHttpMetrics(): Promise<HttpMetricsResponse> {
+  return request<HttpMetricsResponse>("/v1/system/operations/http-metrics", {
     method: "GET",
     headers: buildHeaders()
   });

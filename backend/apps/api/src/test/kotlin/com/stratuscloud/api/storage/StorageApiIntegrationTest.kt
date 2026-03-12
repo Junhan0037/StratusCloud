@@ -211,6 +211,34 @@ class StorageApiIntegrationTest {
     }
 
     @Test
+    fun `다른 tenant 사용자는 버킷을 조회할 수 없고 denied audit가 남아야 한다`() {
+        val ownerFixture = createFixture("storage-tenant-owner")
+        val attackerFixture = createFixture("storage-tenant-attacker")
+        val bucket = createBucket(ownerFixture, "isolated-bucket")
+
+        mockMvc.get("/v1/storage/buckets/${bucket.get("id").asText()}") {
+            header("X-Project-Role", "ADMIN")
+            header("X-Tenant-Id", attackerFixture.tenant.id.toString())
+            header("X-Project-Id", attackerFixture.project.id.toString())
+        }.andExpect {
+            status { isForbidden() }
+            jsonPath("$.code") { value("FORBIDDEN") }
+        }
+
+        val deniedLogs = auditEventRepository.search(
+            tenantId = ownerFixture.tenant.id,
+            projectId = ownerFixture.project.id,
+            actorId = null,
+            resourceType = "BUCKET",
+            action = "storage:bucket:read",
+            result = AuditResult.DENIED,
+            occurredFrom = null,
+            occurredTo = null
+        )
+        assertThat(deniedLogs).isNotEmpty
+    }
+
+    @Test
     fun `스토리지 정책을 설정하고 버킷 quota를 초과하면 생성이 거부되어야 한다`() {
         val fixture = createFixture("storage-governance-quota")
 

@@ -34,3 +34,16 @@ export SECURITY_OIDC_JWK_SET_URI=http://localhost:8081/realms/stratuscloud/proto
   - `POST /v1/iam/roles`
   - `POST /v1/iam/api-keys`
   - `DELETE /v1/iam/api-keys/{keyId}`
+
+## 운영 안정화(Week 11)
+
+- 익명 헬스체크: `GET /actuator/health`, `GET /actuator/health/liveness`
+- 관리자 운영 API:
+  - `GET /v1/system/operations/summary`
+  - `GET /v1/system/operations/http-metrics`
+- 성능 스모크 단독 실행:
+
+```bash
+cd backend
+./gradlew :apps:api:test --tests 'com.stratuscloud.api.system.OperationsPerformanceSmokeTest'
+```

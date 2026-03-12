@@ -32,7 +32,8 @@ class AuthContextFilter(
 ) : OncePerRequestFilter() {
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
-        return request.requestURI.startsWith("/v1/system") ||
+        return request.requestURI == "/v1/system/ping" ||
+            request.requestURI.startsWith("/actuator/health") ||
             request.requestURI.startsWith("/v1/storage/presigned/")
     }
 
