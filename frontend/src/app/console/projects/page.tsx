@@ -29,21 +29,15 @@ export default function ConsoleProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<ProjectResponse | null>(null);
 
   return (
-    <main style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 20px" }}>
-      <header style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>Week 11 Operations Console</h1>
-        <p style={{ marginTop: 10, color: "#5d6b7d" }}>
+    <div className="space-y-6">
+      <div className="pb-5 border-b border-slate-200">
+        <h3 className="text-lg leading-6 font-medium text-slate-900">Week 11 Operations Console</h3>
+        <p className="mt-2 max-w-4xl text-sm text-slate-500">
           JWT/API Key 인증, IAM, Audit, Compute, Network, Object Storage, Governance, 운영 안정화 흐름까지 빠르게 검증할 수 있는 운영 화면입니다.
         </p>
-      </header>
+      </div>
 
-      <section
-        style={{
-          display: "grid",
-          gap: 16,
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))"
-        }}
-      >
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <OperationsPanel />
         <AuthSessionPanel />
         <PolicyPanel />
@@ -65,7 +59,7 @@ export default function ConsoleProjectsPage() {
         <HealthcheckPanel selectedProject={selectedProject} />
         <ProjectPanel onSelectProject={setSelectedProject} />
         <MemberPanel selectedProject={selectedProject} />
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }

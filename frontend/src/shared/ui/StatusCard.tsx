@@ -7,17 +7,12 @@ interface StatusCardProps {
 // 콘솔 대시보드에서 공통으로 재사용할 상태 카드 컴포넌트다.
 export function StatusCard({ title, value, description }: StatusCardProps) {
   return (
-    <article
-      style={{
-        background: "var(--surface)",
-        borderRadius: 16,
-        padding: 20,
-        boxShadow: "0 10px 25px rgba(20, 43, 78, 0.08)"
-      }}
-    >
-      <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>{title}</p>
-      <strong style={{ display: "block", marginTop: 8, fontSize: 24 }}>{value}</strong>
-      <p style={{ marginTop: 8, marginBottom: 0, color: "var(--muted)", fontSize: 13 }}>{description}</p>
-    </article>
+    <div className="bg-white overflow-hidden rounded-lg shadow-sm border border-slate-200">
+      <div className="px-4 py-5 sm:p-6">
+        <dt className="text-sm font-medium text-slate-500 truncate">{title}</dt>
+        <dd className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{value}</dd>
+        <dd className="mt-2 text-sm text-slate-400">{description}</dd>
+      </div>
+    </div>
   );
 }
