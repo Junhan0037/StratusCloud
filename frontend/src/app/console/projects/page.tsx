@@ -5,6 +5,7 @@ import { AutoscalingGroupPanel } from "@/features/compute/autoscaling/Autoscalin
 import { HealthcheckPanel } from "@/features/compute/health/HealthcheckPanel";
 import { ImageCatalogPanel } from "@/features/compute/images/ImageCatalogPanel";
 import { InstancePanel } from "@/features/compute/instances/InstancePanel";
+import { ManagedDatabasePanel } from "@/features/data/databases/ManagedDatabasePanel";
 import { DnsRecordPanel } from "@/features/network/dns/DnsRecordPanel";
 import { ElasticIpPanel } from "@/features/network/elastic-ips/ElasticIpPanel";
 import { LoadBalancerPanel } from "@/features/network/load-balancers/LoadBalancerPanel";
@@ -33,7 +34,7 @@ export default function ConsoleProjectsPage() {
       <div className="pb-5 border-b border-slate-200">
         <h3 className="text-lg leading-6 font-medium text-slate-900">Week 11 Operations Console</h3>
         <p className="mt-2 max-w-4xl text-sm text-slate-500">
-          JWT/API Key 인증, IAM, Audit, Compute, Network, Object Storage, Governance, 운영 안정화 흐름까지 빠르게 검증할 수 있는 운영 화면입니다.
+          JWT/API Key 인증, IAM, Audit, Managed DB, Compute, Network, Object Storage, Governance, 운영 안정화 흐름까지 빠르게 검증할 수 있는 운영 화면입니다.
         </p>
       </div>
 
@@ -44,6 +45,7 @@ export default function ConsoleProjectsPage() {
         <ApiKeyPanel />
         <SecretPanel />
         <AuditPanel />
+        <ManagedDatabasePanel selectedProject={selectedProject} />
         <VpcPanel selectedProject={selectedProject} />
         <SubnetPanel selectedProject={selectedProject} />
         <RouteTablePanel selectedProject={selectedProject} />

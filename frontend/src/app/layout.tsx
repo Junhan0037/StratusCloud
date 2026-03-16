@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,33 +14,33 @@ function Sidebar() {
         <span className="text-lg font-bold tracking-tight text-white">StratusCloud</span>
       </div>
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        <a href="/" className="flex items-center px-2 py-2 text-sm font-medium rounded-md bg-slate-800 text-white">
+        <Link href="/" className="flex items-center px-2 py-2 text-sm font-medium rounded-md bg-slate-800 text-white">
           Overview
-        </a>
+        </Link>
         <div className="pt-4 pb-2">
           <p className="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Resources</p>
         </div>
-        <a href="/console/iam" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
+        <Link href="/console/iam" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
           IAM & Security
-        </a>
-        <a href="/console/compute" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
+        </Link>
+        <Link href="/console/compute" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
           Compute
-        </a>
-        <a href="/console/network" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
+        </Link>
+        <Link href="/console/network" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
           Network
-        </a>
-        <a href="/console/storage" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
+        </Link>
+        <Link href="/console/storage" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
           Storage
-        </a>
+        </Link>
         <div className="pt-4 pb-2">
           <p className="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Management</p>
         </div>
-        <a href="/console/governance" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
+        <Link href="/console/governance" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
           Governance
-        </a>
-        <a href="/console/audit" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
+        </Link>
+        <Link href="/console/audit" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-slate-300 hover:bg-slate-800 hover:text-white">
           Audit Logs
-        </a>
+        </Link>
       </nav>
       <div className="p-4 border-t border-slate-800">
         <div className="flex items-center">

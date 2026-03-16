@@ -8,6 +8,8 @@ export type ComputeOsType = "LINUX" | "WINDOWS";
 export type ComputeHealthStatus = "UNKNOWN" | "HEALTHY" | "UNHEALTHY";
 export type ComputeHealthPolicy = "RESTART";
 export type ComputeAutoscalingGroupStatus = "ACTIVE";
+export type ManagedDatabaseEngine = "POSTGRESQL";
+export type ManagedDatabaseStatus = "PROVISIONING" | "AVAILABLE" | "BACKING_UP" | "RESTORING" | "FAILED" | "DELETED";
 export type NetworkRouteTargetType = "LOCAL" | "INTERNET_GATEWAY" | "NAT_GATEWAY";
 export type NetworkRuleDirection = "INGRESS" | "EGRESS";
 export type NetworkRuleProtocol = "TCP" | "UDP" | "ICMP" | "ALL";
@@ -124,6 +126,20 @@ export interface ComputeImageResponse {
   status: ComputeImageStatus;
   tags: string[];
   createdAt: string;
+}
+
+export interface ManagedDatabaseResponse {
+  id: string;
+  tenantId: string;
+  projectId: string;
+  name: string;
+  engine: ManagedDatabaseEngine;
+  engineVersion: string;
+  instanceClass: string;
+  storageGb: number;
+  status: ManagedDatabaseStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ComputeInstanceResponse {
@@ -754,6 +770,43 @@ export async function listComputeImages(filters: ComputeImageFilter): Promise<Co
   }
   return request<ComputeImageResponse[]>(`/v1/compute/images?${params.toString()}`, {
     method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function createManagedDatabase(
+  tenantId: string,
+  projectId: string,
+  name: string,
+  engineVersion: string,
+  instanceClass: string,
+  storageGb: number
+): Promise<ManagedDatabaseResponse> {
+  return request<ManagedDatabaseResponse>("/v1/data/databases", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify({
+      tenantId,
+      projectId,
+      name,
+      engineVersion,
+      instanceClass,
+      storageGb
+    })
+  });
+}
+
+export async function listManagedDatabases(tenantId: string, projectId: string): Promise<ManagedDatabaseResponse[]> {
+  const params = new URLSearchParams({ tenantId, projectId });
+  return request<ManagedDatabaseResponse[]>(`/v1/data/databases?${params.toString()}`, {
+    method: "GET",
+    headers: buildHeaders()
+  });
+}
+
+export async function deleteManagedDatabase(databaseId: string): Promise<ManagedDatabaseResponse> {
+  return request<ManagedDatabaseResponse>(`/v1/data/databases/${databaseId}`, {
+    method: "DELETE",
     headers: buildHeaders()
   });
 }

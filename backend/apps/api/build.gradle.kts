@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":modules:common"))
     implementation(project(":modules:iam"))
     implementation(project(":modules:compute"))
+    implementation(project(":modules:data"))
     implementation(project(":modules:network"))
     implementation(project(":modules:storage"))
     implementation(project(":modules:governance"))

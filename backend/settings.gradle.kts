@@ -5,6 +5,7 @@ include(
     ":modules:common",
     ":modules:iam",
     ":modules:compute",
+    ":modules:data",
     ":modules:network",
     ":modules:storage",
     ":modules:governance",

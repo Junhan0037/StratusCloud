@@ -18,6 +18,8 @@ tags:
     description: 운영 상태 조회 API
   - name: iam
     description: IAM 및 프로젝트 관리 API
+  - name: data
+    description: Managed DB 제어면 API
   - name: compute
     description: Compute Image 및 Instance API
   - name: network
@@ -480,6 +482,89 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SecretVersion'
+
+  /v1/data/databases:
+    post:
+      tags: [data]
+      summary: Managed DB 리소스를 생성한다.
+      operationId: createManagedDatabase
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManagedDatabaseRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedDatabase'
+    get:
+      tags: [data]
+      summary: 프로젝트의 Managed DB 목록을 조회한다.
+      operationId: listManagedDatabases
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ManagedDatabase'
+
+  /v1/data/databases/{databaseId}:
+    get:
+      tags: [data]
+      summary: Managed DB 단건을 조회한다.
+      operationId: getManagedDatabase
+      parameters:
+        - name: databaseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedDatabase'
+    delete:
+      tags: [data]
+      summary: Managed DB를 삭제 상태로 전환한다.
+      operationId: deleteManagedDatabase
+      parameters:
+        - name: databaseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 삭제 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedDatabase'
 
   /v1/compute/images:
     post:
@@ -2189,6 +2274,14 @@ components:
       type: string
       enum: [SUCCESS, DENIED]
 
+    ManagedDatabaseEngine:
+      type: string
+      enum: [POSTGRESQL]
+
+    ManagedDatabaseStatus:
+      type: string
+      enum: [PROVISIONING, AVAILABLE, BACKING_UP, RESTORING, FAILED, DELETED]
+
     ComputeImageStatus:
       type: string
       enum: [ACTIVE, DEPRECATED]
@@ -3427,6 +3520,65 @@ components:
           allOf:
             - $ref: '#/components/schemas/SecretVersion'
           nullable: true
+
+    CreateManagedDatabaseRequest:
+      type: object
+      required: [tenantId, projectId, name, engineVersion, instanceClass, storageGb]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        engineVersion:
+          type: string
+          minLength: 2
+          maxLength: 30
+        instanceClass:
+          type: string
+          minLength: 2
+          maxLength: 40
+        storageGb:
+          type: integer
+          minimum: 10
+          maximum: 1024
+
+    ManagedDatabase:
+      type: object
+      required: [id, tenantId, projectId, name, engine, engineVersion, instanceClass, storageGb, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        engine:
+          $ref: '#/components/schemas/ManagedDatabaseEngine'
+        engineVersion:
+          type: string
+        instanceClass:
+          type: string
+        storageGb:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ManagedDatabaseStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     CreateComputeImageRequest:
       type: object
